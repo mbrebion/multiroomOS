@@ -21,7 +21,6 @@ class Io(object):
     class dealing with IOs
     """
 
-
     def __init__(self,os):
         # setup encoders
         self.volumeCtl=RotaryEncoder(11,13,15,"Volume")
@@ -72,9 +71,12 @@ class Io(object):
             # exit ?
             self.checkStopAsked()
 
+            self.volumeCtl.updateCurrent()
+            self.menuCtl.updateCurrent()
+            #print("real : ",GPIO.input(11),GPIO.input(13))
 
 
-            sleep(0.4)
+            sleep(0.25)
 
 
 

@@ -22,6 +22,7 @@ class Os(object):
 
         # never ending loop
         try:
+            osys.system("mpc clear") # clear last mpd playlist
             self.io.startIO()
         finally:
             Menu.clearProcesses()
@@ -87,7 +88,7 @@ class Os(object):
 
     def askNewVolume(self,dec):
 
-        ndec = max(min(6,dec*abs(dec)),-6)
+        ndec = max(min(12,dec),-12)
         newVol = min(self.maxVol,max(self.minVol,self.volume +  ndec))
         self.io.writeText("Volume : " +str( newVol)+"dB",2)
         self.volume=newVol
