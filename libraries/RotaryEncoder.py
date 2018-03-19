@@ -9,7 +9,7 @@ class RotaryEncoder(object):
     this class is dedicated to deal with a rotary encoder and manage it
     """
 
-    def __init__(self,clk,dt,switch,name):
+    def __init__(self,switch,clk,dt,name):
         """
 
         :param clk: pin for clk
@@ -39,17 +39,16 @@ class RotaryEncoder(object):
 
         # GPIOs init
         GPIO.setmode(GPIO.BOARD)
-        GPIO.setup(self.clk, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.setup(self.dt, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        GPIO.setup(self.clk, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+        GPIO.setup(self.dt, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
         GPIO.setup(self.switch, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
         self.current=[GPIO.input(self.clk),GPIO.input(self.dt),0] # current state
 
 
         # add callback event
-        GPIO.add_event_detect(self.clk, GPIO.BOTH, callback=self.rotaryCallState,bouncetime=6)
-        GPIO.add_event_detect(self.dt, GPIO.BOTH, callback=self.rotaryCallState,bouncetime=6)
-
+        GPIO.add_event_detect(self.clk, GPIO.BOTH, callback=self.rotaryCallState,bouncetime=15)
+        GPIO.add_event_detect(self.dt, GPIO.BOTH, callback=self.rotaryCallState,bouncetime=15)
         GPIO.add_event_detect(self.switch, GPIO.BOTH, callback=self.switchCall,bouncetime=25)
 
 
@@ -64,6 +63,8 @@ class RotaryEncoder(object):
             self.askRefresh=False
 
     def rotaryCallState(self,chanel):
+        print "event : "+ str(chanel)
+        print GPIO.input(chanel)
         self.last=self.current
 
         # check if event missed
@@ -121,6 +122,7 @@ class RotaryEncoder(object):
         return store
 
     def getSwitch(self):
+
         if self.hasBeenSwitchedOn:
             self.hasBeenSwitchedOn = False
             return True
