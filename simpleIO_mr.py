@@ -1,10 +1,9 @@
 __author__ = 'mbrebion'
 
-from libraries.i2clcda import lcd_init,lcd_string,LCD_LINE_1,LCD_LINE_2
 from libraries.RotaryEncoder import RotaryEncoder
 from time import sleep
-from io_mr import MSG_SELECT,MSG_MENU,MSG_VOL,MSG_WIFI,MSG_BACK,MSG_SHUTDOWN,serverThread
-
+from libraries.constants import MSG_SHUTDOWN,MSG_BUTTON,MSG_BACK,MSG_MENU,MSG_SELECT,MSG_VOL,MSG_WIFI
+from libraries.tcpComm import ClientThread,connectToHost
 
 
 class SimpleIo(object):
@@ -17,19 +16,21 @@ class SimpleIo(object):
         self.menuCtl=RotaryEncoder(13,15,11,"Menu")
         self.os=os # link to parent
         # init screen
-
-        try :
-            lcd_init()
-        except IOError:
-            print "no lcd screen connected"
-
-        # TCP comm
-        self.tcpServer=serverThread(os)
+        self.connectedToHost=False # set to true if connection is established with main hifi system
+        self.client=None
+        self.cth()
 
 
-    def communicateTCP(self):
+
+    def cth(self):
+        skt=connectToHost()
+        if skt!=False :
+            self.client=ClientThread("unknown", 0, skt,self.os)
+            self.connectedToHost=True
+
+
+    def askBacklight(self):
         pass
-
 
     def startIO(self):
         """
@@ -37,6 +38,7 @@ class SimpleIo(object):
         :return:
         """
         self.goOn=True
+        count=0
         while self.goOn:
 
             # change menu
@@ -51,20 +53,17 @@ class SimpleIo(object):
             # exit ?
             self.os.checkStopAsked()
 
-            self.menuCtl.updateCurrent()
 
+            # connect or reconnect to host :
+            if self.connectedToHost==False and count %20 == 0:
+                self.cth()
+
+            count+=1
             sleep(0.25)
-
-        # close tcp server
-        print "closing tcp server"
-        self.tcpServer.shutDown()
 
 
 
     def writeText(self,text,line):
-        # remote displays (if connected)
-        self.tcpServer.sendToAll(str(line)+text)
-
         # LCD screen if connected
         pass
 

@@ -16,3 +16,12 @@ radios.append(["Rire & Chansons","http://cdn.nrjaudio.fm/audio1/fr/30401/mp3_128
 simple=False  # in simple mode, only one rotary encoder
 entries=["bt","radios","localMusic"]
 
+
+
+
+# host ip address
+host="192.168.0.12"
+hortPort=15555
+
+# backlight param
+blDelay=10    # backlight time in s (negative for unlimited)

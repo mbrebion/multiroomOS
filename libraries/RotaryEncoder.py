@@ -27,10 +27,6 @@ class RotaryEncoder(object):
 
 
         # detection improvement
-        self.lastSide=0
-        self.changeSideDt=0.150 # minimal time before change in rotation side in second
-        self.lastCall=0
-        self.askRefresh=True
         self.last=[0,0,0]
 
 
@@ -45,7 +41,6 @@ class RotaryEncoder(object):
 
         self.current=[GPIO.input(self.clk),GPIO.input(self.dt),0] # current state
 
-
         # add callback event
         GPIO.add_event_detect(self.clk, GPIO.BOTH, callback=self.rotaryCallState,bouncetime=15)
         GPIO.add_event_detect(self.dt, GPIO.BOTH, callback=self.rotaryCallState,bouncetime=15)
@@ -57,62 +52,35 @@ class RotaryEncoder(object):
             self.hasBeenSwitchedOn = True
 
 
-    def updateCurrent(self,force=False):
-        if (time.time()-self.lastCall >0.25 and self.askRefresh) or force :    # this test prevent from modification while rotary is in use
-            self.current=[GPIO.input(self.clk),GPIO.input(self.dt),-1]
-            self.askRefresh=False
-
     def rotaryCallState(self,chanel):
-        print "event : "+ str(chanel)
-        print GPIO.input(chanel)
+        state=GPIO.input(chanel)
+        #print "event : "+ str(chanel)
+        #print state
+
+        if chanel==self.clk:
+            target=self.clk
+            index=0
+        else :
+            target = self.dt
+            index=1
+
+        if self.current[index]==state : # wrong hit : already in this state
+            return
+
         self.last=self.current
+        self.current[index]=state
 
-        # check if event missed
-        if chanel==self.current[2]:
-            # two events in a row of same chanel : event probably missed or rotary rotated forth and back
-            #self.current=[1-self.current[0],1-self.current[1],chanel]
-            time.sleep(0.005)
-            self.updateCurrent(True)
-        else : # no event missed
-            if chanel==self.clk:
-                self.current=[1-self.current[0],self.current[1],chanel]
-            else:
-                self.current=[self.current[0],1-self.current[1],chanel]
+        if target==self.clk: # clockwhise assumed here
+            if state == 1 and self.last[1]==0:
+                self.counts+=1
+            if state == 0 and self.last[1]==1 :
+                self.counts+=1
 
-        self.rotaryCall()
-        self.askRefresh=True
-
-
-
-    def rotaryCall(self):
-
-        now=time.time()
-        dt=now-self.lastCall
-
-        if self.last==[0,1,self.dt]:
-            if self.current==[1,1,self.clk]:
-                # turning clockwise
-                if self.lastSide==-1 and dt < self.changeSideDt :
-                    # this might be an error : do nothing
-                    time.sleep(0.005)
-                    self.updateCurrent(True)
-                else :
-                    self.lastSide=1
-                    self.counts+=1
-                self.lastCall=time.time()
-
-        if self.last==[1,0,self.clk]:
-            if self.current==[1,1,self.dt]:
-                # turning anti-clockwise
-                if self.lastSide==1 and dt < self.changeSideDt :
-                    # this might be an error : do nothing
-                    time.sleep(0.005)
-                    self.updateCurrent(True)
-                else :
-                    self.lastSide=-1
-                    self.counts+=-1
-                self.lastCall=time.time()
-
+        if target == self.dt : # anti clockwise assumed here
+            if state ==0 and self.last[0]==1:
+                self.counts-=1
+            if state ==1 and self.last[0]==0 :
+                self.counts-=1
 
 
 
@@ -122,7 +90,6 @@ class RotaryEncoder(object):
         return store
 
     def getSwitch(self):
-
         if self.hasBeenSwitchedOn:
             self.hasBeenSwitchedOn = False
             return True

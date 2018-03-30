@@ -4,6 +4,7 @@ import subprocess
 from config import radios, entries
 from time import sleep
 import system
+from libraries.mpcHelper import MpcHelper
 
 class SubMenu(object):
     processes=[]  # static var to store all the processes which must be killed on exit
@@ -21,7 +22,12 @@ class SubMenu(object):
         self.currentProc = False
         self.parent = parent
         self.list=[]
+
         self.actionTag=""
+        self.actionTagTwo=""
+        self.askRefresh=False # if set to true, a new refresh will be triggered at next io loop
+
+
         self.selectable=True
 
     def explorable(self):
@@ -90,18 +96,38 @@ class Menu(SubMenu):
 
 
 
+
+    ######################################### special commands targeted with buttons actions
+    def outsideRadioAsk(self):
+        system.startCommand("mpc clear")
+        system.startCommand("mpc add http://direct.franceinter.fr/live/franceinter-midfi.mp3" )
+        system.startCommand("mpc play")
+
+    def clearMPD(self):
+        system.startCommand("mpc clear")
+
+
+    ##########################################
+
+
     def next(self):
         self.currentSub._next()
 
     def previous(self):
         self.currentSub._previous()
 
+    def requireRefresh(self):
+        out=False
+        if self.currentSub.askRefresh :
+            out=True
+            self.currentSub.askRefresh=False
+        return out
 
     def info(self):
         if self.currentSub.explorable():
-            return self.currentSub.name,self.currentSub.list[self.currentSub.count].name
+            return self.currentSub.name,self.currentSub.list[self.currentSub.count].name,""
         else :
-            return self.currentSub.name,self.currentSub.actionTag
+            return self.currentSub.name, self.currentSub.actionTag, self.currentSub.actionTagTwo
 
 
     def select(self):
@@ -128,6 +154,7 @@ class Bt(SubMenu):
 
     def onSelected(self):
         SubMenu.onSelected(self)
+        print("set wifi off")
         system.startCommand('sudo /sbin/ifconfig wlan0 down')
 
     def _back(self):
@@ -188,22 +215,17 @@ class Album(SubMenu):
         self.parent=parent
         self.play=False
         self.loaded=False
+        self.mpcH=False
 
-    def updateTag(self,msg=False):
-        """
-        set tag to song name if no other message is provided.
-        :param msg: message to put as a actionTag (displayed at the second line of lcd screen)
-        :return: nothing
-        """
-        if msg==False:
-            sleep(0.05)
-            try :
-                info = subprocess.check_output("mpc current",shell=True).split("-")[1].strip('\n')
-            except:
-                info=""
-        else:
-            info=msg
-        self.actionTag=info
+    def killHelper(self):
+        if self.mpcH!=False:
+            self.mpcH.shutDown()
+
+    def resetHelper(self):
+        if self.mpcH!=False:
+            self.mpcH.shutDown()
+
+        self.mpcH=MpcHelper(self)
 
 
     def onSelected(self):
@@ -213,35 +235,33 @@ class Album(SubMenu):
             cmd="mpc search Album  \""+self.name+"\" artist \""+ self.parent.name+ "\" | mpc add"
             system.startCommand(cmd)
             self.loaded=True
+            self.resetHelper()
+
 
         if self.play:
             system.startCommand("mpc pause")
             self.play=False
-            self.updateTag(" - paused - ")
+
         else :
             system.startCommand("mpc play")
             self.play = True
-            self.updateTag()
 
 
     def _next(self):
         system.startCommand("mpc next")
-        self.updateTag()
-        print self.actionTag
 
     def _previous(self):
         system.startCommand("mpc prev")
-        self.updateTag()
-        print self.actionTag
 
     def _back(self):
         system.startCommand("mpc stop")
         system.startCommand("mpc clear")
         self.play=False
         self.loaded=False
-        self.updateTag(" - stopped - ")
-        print self.actionTag
+        self.killHelper()
         return SubMenu._back(self)
+
+
 
 class PlayList(SubMenu):
     def __init__(self,parent,name="Playlists"):

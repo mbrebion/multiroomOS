@@ -1,6 +1,6 @@
 __author__ = 'mbrebion'
 import os as osys
-
+import time
 
 def startCommand(command,output=False):
     if output==False:
@@ -13,3 +13,9 @@ def startCommand(command,output=False):
 
 def isFile(name):
     return osys.path.isfile(name)
+
+
+
+
+def sleep(tm):
+    time.sleep(tm)

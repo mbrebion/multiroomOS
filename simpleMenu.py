@@ -21,6 +21,20 @@ class SimpleMenu(SubMenu):
         self.configureEntries()
 
 
+    ######################################### special commands targeted with buttons actions
+
+    def outsideRadioAsk(self):
+        system.startCommand("mpc clear")
+        system.startCommand("mpc add http://direct.franceinter.fr/live/franceinter-midfi.mp3" )
+        system.startCommand("mpc stop")
+        system.startCommand("mpc play")
+
+
+    def clearMPD(self):
+        system.startCommand("mpc clear")
+
+    #########################################
+
     def configureEntries(self):
         self.addEntry(Off(self))
 

@@ -1,12 +1,19 @@
 __author__ = 'mbrebion'
 
 
-from io_mr import Io,MSG_VOL,MSG_WIFI,MSG_MENU,MSG_BACK,MSG_SELECT,MSG_BUTTON
-from simpleIO_mr import SimpleIo
-from menu import Menu
-from simpleMenu import SimpleMenu
 from config import simple
+
+if simple:
+    print "simple system selected"
+    from simpleIO_mr import SimpleIo
+    from simpleMenu import SimpleMenu
+else:
+    print "main system selected"
+    from io_mr import Io
+    from menu import Menu
+
 import system
+from libraries.constants import MSG_BUTTON,MSG_BACK,MSG_MENU,MSG_SELECT,MSG_VOL,MSG_WIFI,MSG_PRINT,MSG_ORDER
 
 
 class Os(object):
@@ -18,6 +25,8 @@ class Os(object):
         self.maxVol=0
         self.volume=-11
         self.wifiEnabled=True
+        self.askExit=False
+        self.lastOrder=0
 
 
         if simple:
@@ -35,7 +44,8 @@ class Os(object):
             system.startCommand("mpc update")
             self.io.startIO()
         finally:
-            Menu.clearProcesses()
+            if simple==False:
+                Menu.clearProcesses()
 
 
     def takeAction(self,message,value):
@@ -57,29 +67,85 @@ class Os(object):
         if message==MSG_BUTTON:
             self.askButtonAction(value)
 
+        if message==MSG_PRINT:
+            self.askPrint(value)
+
+        if message==MSG_ORDER:
+            self.askOrder(value)
+
+
+        self.io.askBacklight()
+
+
+    def connectionLost(self):
+        self.io.connectedToHost=False
+
+
+    def askOrder(self,value):
+        if value==25:
+            self.menu.outsideRadioAsk()
+        if value==26:
+            self.menu.clearMPD()
+
+
+    def askPrint(sel,value):
+        print value
 
 
     def askButtonAction(self,value):
         if value==1 :
-            print "button1"
+            """
+            radio in every room
+            """
+            radioOrder=25
+            clearOrder=26
+            if self.lastOrder!=radioOrder:
+                order=radioOrder
+                self.io.tcpServer.sendToAllDevices(MSG_ORDER+","+str(order));
+                self.lastOrder=order
+                system.sleep(0.1)
+                self.menu.outsideRadioAsk()
+            else :
+                order=clearOrder
+                self.io.tcpServer.sendToAllDevices(MSG_ORDER+","+str(order));
+                self.lastOrder=order
+                self.menu.clearMPD()
+
+
 
         if value==2 :
-            print "button2"
+            self.askExit = not self.askExit
+            if self.askExit:
+                self.io.writeText("Shutdown ? (Y-3,N-4)",4)
+            else:
+                self.askNewVolume(0)
 
         if value==3 :
-            print "button3"
+            if self.askExit==True:
+                system.startCommand("sudo sleep 3 ; sudo shutdown now")
+                self.safeStop()
+
 
         if value==4 :
-            print "button4"
+            if self.askExit==True:
+                self.askNewVolume(0)
+                self.askExit=False
 
+
+
+    def refreshView(self):
+        if self.menu.requireRefresh():
+            self.updateView()
 
     # interact with menu
     def updateView(self):
-        menu,choice = self.menu.info()
+        menu,choice,choiceTwo = self.menu.info()
         if menu!="":
             self.io.writeText(menu,1)
         if choice!="":
             self.io.writeText(choice,2)
+        if choice!="":
+            self.io.writeText(choiceTwo,3)
 
     def askScrollMenu(self,dec):
 
@@ -99,14 +165,17 @@ class Os(object):
         self.updateView()
 
 
+
+    def safeStop(self):
+        self.io.goOn=False
+        system.startCommand("mpc stop")
+        system.startCommand("mpc clear")
+        self.io.writeText("Exiting", 1)
+
     def checkStopAsked(self):
         if system.isFile("/home/pi/os/.stop"):
-            self.io.goOn=False
-            system.startCommand("mpc stop")
-            system.startCommand("mpc clear")
             system.startCommand("rm /home/pi/os/.stop")
-            self.io.writeText("Exiting", 1)
-
+            self.safeStop()
 
 
     def askNewVolume(self,dec):
