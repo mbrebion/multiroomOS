@@ -19,9 +19,9 @@ class Io(object):
         # setup encoders
         self.volumeCtl=RotaryEncoder(19,23,21,"Volume")
         self.menuCtl=RotaryEncoder(11,15,13,"Menu")
-        self.backlight=Backlight(22)
+        self.backlight=Backlight(os)
         self.os=os # link to parent
-
+        self.lines=["","","",""]
         buttonPorts=[10,8,16,18]
         buttonIds=[4,2,3,1]
         self.faceButtons=[]
@@ -49,7 +49,9 @@ class Io(object):
     def startIO(self):
         """
         main loop of os
-        :return:
+        outputs to devices and lcds should only be performed from this thread to prevent concurrency
+        Other thread might ask for an output refresh
+        :return: nothing
         """
         self.goOn=True
         count=0
@@ -58,12 +60,12 @@ class Io(object):
             # change volume
             dec=self.volumeCtl.getDec()
             if dec!=0 :
-                self.os.takeAction(MSG_VOL,dec)
+                self.os.takeAction(MSG_VOL, dec)
 
             # change menu
             dec=self.menuCtl.getDec()
             if dec!=0 :
-                self.os.takeAction(MSG_MENU,+dec)
+                self.os.takeAction(MSG_MENU, dec)
 
             # back button status
             if self.volumeCtl.getSwitch():
@@ -77,29 +79,39 @@ class Io(object):
                 if faceButton.getSwitch():
                     self.os.takeAction(MSG_BUTTON,faceButton.id)
 
-
             # exit ?
-            if count%20 == 0 :
+            if count%40 == 0 :
                 # this test is now done less often than before to prevent sd card corruption and overflow.
                 self.os.checkStopAsked()
+                count=1
 
+            # refresh view if any changes occurred
+            self.os.refreshView()
 
-            sleep(0.2)
+            sleep(0.12)
             count+=1
 
         # close tcp server
-        print "closing tcp server"
         self.tcpServer.shutDown()
         self.backlight.shutDown()
 
 
 
+    def resetScreen(self):
+        lcd_init()
+        self.resendTexts()
+
+    def resendTexts(self):
+        for i in [1,2,3,4]:
+            self.writeText(self.lines[i-1],i)
 
     def writeText(self,text,line):
 
         # remote displays (if connected)
         self.tcpServer.sendToAllRemotes(str(line)+";;"+text)
+        # store new content
 
+        self.lines[line-1] = text
         # LCD screen if connected
         try :
             if line==1:
@@ -115,6 +127,6 @@ class Io(object):
                 oline=LCD_LINE_4
                 lcd_string(text,oline)
 
-        except IOError:
-            print "screen disconnected"
+        except :
+            print "lcd screen disconnected "
 

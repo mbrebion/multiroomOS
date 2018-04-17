@@ -1,8 +1,6 @@
 __author__ = 'maxence'
 
 from RPi import GPIO
-import time
-# usefull to controll one rotary encoder
 
 class RotaryEncoder(object):
     """
@@ -42,10 +40,12 @@ class RotaryEncoder(object):
         self.current=[GPIO.input(self.clk),GPIO.input(self.dt),0] # current state
 
         # add callback event
-        GPIO.add_event_detect(self.clk, GPIO.BOTH, callback=self.rotaryCallState,bouncetime=15)
-        GPIO.add_event_detect(self.dt, GPIO.BOTH, callback=self.rotaryCallState,bouncetime=15)
-        GPIO.add_event_detect(self.switch, GPIO.BOTH, callback=self.switchCall,bouncetime=25)
+        GPIO.add_event_detect(self.clk, GPIO.BOTH, callback=self.rotaryCallState,bouncetime=1)
+        GPIO.add_event_detect(self.dt, GPIO.BOTH, callback=self.rotaryCallState,bouncetime=1)
+        GPIO.add_event_detect(self.switch, GPIO.BOTH, callback=self.switchCall,bouncetime=50)
 
+        # a test on the rotary showed that bouncetime did not exceded 10 \mu s
+        # a value of 1ms is therefore safe
 
     def switchCall(self,channel):
         if GPIO.input(self.switch) == 0:
@@ -70,7 +70,7 @@ class RotaryEncoder(object):
         self.last=self.current
         self.current[index]=state
 
-        if target==self.clk: # clockwhise assumed here
+        if target==self.clk: # clockwise assumed here
             if state == 1 and self.last[1]==0:
                 self.counts+=1
             if state == 0 and self.last[1]==1 :
@@ -87,6 +87,7 @@ class RotaryEncoder(object):
     def getDec(self):
         store=self.counts
         self.counts=0
+
         return store
 
     def getSwitch(self):

@@ -27,7 +27,6 @@ class SubMenu(object):
         self.actionTagTwo=""
         self.askRefresh=False # if set to true, a new refresh will be triggered at next io loop
 
-
         self.selectable=True
 
     def explorable(self):
@@ -48,7 +47,23 @@ class SubMenu(object):
         self.list[self.count].onShowed()
 
     def onSelected(self):
+        """
+        called when item is selected
+        :return: nothing
+        """
         pass
+
+
+    def getAncestorMenu(self):
+        sub=self
+        found=False
+        while not found:
+            print sub.name
+            if sub.parent.name=="Menu":
+                found=True
+                return sub.parent
+            else :
+                sub=sub.parent
 
     def onShowed(self):
         """
@@ -96,43 +111,57 @@ class Menu(SubMenu):
 
 
 
-
     ######################################### special commands targeted with buttons actions
-    def outsideRadioAsk(self):
-        system.startCommand("mpc clear")
-        system.startCommand("mpc add http://direct.franceinter.fr/live/franceinter-midfi.mp3" )
-        system.startCommand("mpc play")
+    def syncToSnapServer(self):
+        system.startSnapClient()
 
-    def clearMPD(self):
-        system.startCommand("mpc clear")
-
+    def stopSyncing(self):
+        system.stopSnapClient()
 
     ##########################################
 
 
-    def next(self):
-        self.currentSub._next()
+    def next(self,dec=1):
+        """
+        this function is called when physical ROTARY encoder is turned + or when asked by remote control
+        :return: Nothing
+        """
+        for i in range(dec):
+            self.currentSub._next()
 
-    def previous(self):
-        self.currentSub._previous()
+    def previous(self,dec=-1):
+        """
+        this function is called when physical ROTARY encoder is turned - or when asked by remote control
+        :return: Nothing
+        """
+        for i in range(-dec):
+            self.currentSub._previous()
+
+    def askRefreshFromOutside(self):
+        self.currentSub.askRefresh=True
 
     def requireRefresh(self):
-        out=False
+        out = False
         if self.currentSub.askRefresh :
-            out=True
-            self.currentSub.askRefresh=False
+            out = True
+            self.currentSub.askRefresh = False
         return out
 
     def info(self):
         if self.currentSub.explorable():
-            return self.currentSub.name,self.currentSub.list[self.currentSub.count].name,""
+            return self.currentSub.name,self.currentSub.list[self.currentSub.count].name,self.currentSub.actionTagTwo
         else :
             return self.currentSub.name, self.currentSub.actionTag, self.currentSub.actionTagTwo
 
 
     def select(self):
+        """
+        this function is called when physical MENU button is pressed or when asked by remote control or by menu itself
+        (for instance in the case of a single album in a artist submenu)
+        :return: Nothing
+        """
         save= self.currentSub._select()
-        if save!=False and save.selectable==True:
+        if save!=False and save.selectable == True:
             self.currentSub =save
             if save.explorable():
                 try :
@@ -141,6 +170,11 @@ class Menu(SubMenu):
                     pass
 
     def back(self):
+        """
+        this function is called when physical VOLUME button is pressed or when asked by remote control
+        :return: Nothing
+        """
+
         self.currentSub = self.currentSub._back()
 
 
@@ -181,9 +215,11 @@ class Artists(SubMenu):
 
     def populate(self):
         self.clearEntries()
+        # add mpc update here ?
         output = subprocess.check_output("/usr/bin/mpc list AlbumArtist",shell=True)
-        allArtists=output.split('\n')[0:-1] # this contains all artist which released at least an album !
-
+        allArtists=output.split('\n')[1:-1] # this contains all artist which released at least an album !
+        # first item appears to be a blank line
+        self.clearEntries()
         for name in allArtists:
             artist=Artist(self,name)
             self.addEntry(artist)
@@ -191,6 +227,7 @@ class Artists(SubMenu):
     def onSelected(self):
         SubMenu.onSelected(self)
         self.populate()
+        # here, the artist menu is repopulated every time it is selected so that new artists can be retrieved
 
 
 
@@ -201,13 +238,22 @@ class Artist(SubMenu):
         self.populate()
 
     def populate(self):
-        output = subprocess.check_output("/usr/bin/mpc list Album Artist \""+self.name+"\"",shell=True)
+        output = subprocess.check_output("/usr/bin/mpc list Album AlbumArtist \""+self.name+"\"",shell=True)
         allAlbums=output.split('\n')[0:-1] # this contains all artist which released at least an album !
-
+        self.clearEntries()
         for name in allAlbums:
             album=Album(self,name)
             self.addEntry(album)
 
+    def onSelected(self):
+        SubMenu.onShowed(self)
+        if len(self.list)==1 :
+            # the artist has only one album so that the later can be already selected
+            #self._select()
+            pass
+
+    def onShowed(self):
+        self.parent.actionTagTwo = "  -- [" + str(self.parent.count+1)+"/"+str(len(self.parent.list)) +"] --"
 
 class Album(SubMenu):
     def __init__(self,parent,name):
@@ -215,24 +261,27 @@ class Album(SubMenu):
         self.parent=parent
         self.play=False
         self.loaded=False
-        self.mpcH=False
+
 
     def killHelper(self):
-        if self.mpcH!=False:
+        if MpcHelper.exist :
             self.mpcH.shutDown()
+            system.sleep(0.3)
 
     def resetHelper(self):
-        if self.mpcH!=False:
-            self.mpcH.shutDown()
-
+        self.killHelper() # kill helper if necessary
         self.mpcH=MpcHelper(self)
 
 
     def onSelected(self):
         SubMenu.onSelected(self)
+
+        # if content is not yet loaded in mpc, mpc playlist is cleared and then content is loaded
+        # mpc helper is also started
+
         if self.loaded==False :
             system.startCommand("mpc clear")
-            cmd="mpc search Album  \""+self.name+"\" artist \""+ self.parent.name+ "\" | mpc add"
+            cmd="mpc search Album  \""+self.name+"\" albumartist \""+ self.parent.name+ "\" | mpc add"
             system.startCommand(cmd)
             self.loaded=True
             self.resetHelper()
@@ -240,18 +289,21 @@ class Album(SubMenu):
 
         if self.play:
             system.startCommand("mpc pause")
+            self.mpcH.updateView()
             self.play=False
-
         else :
             system.startCommand("mpc play")
+            self.mpcH.updateView()
             self.play = True
 
 
     def _next(self):
         system.startCommand("mpc next")
+        self.mpcH.updateView()
 
     def _previous(self):
         system.startCommand("mpc prev")
+        self.mpcH.updateView()
 
     def _back(self):
         system.startCommand("mpc stop")
@@ -261,6 +313,8 @@ class Album(SubMenu):
         self.killHelper()
         return SubMenu._back(self)
 
+    def onShowed(self):
+        self.parent.actionTagTwo = "  -- [" + str(self.parent.count+1)+"/"+str(len(self.parent.list)) +"] --"
 
 
 class PlayList(SubMenu):

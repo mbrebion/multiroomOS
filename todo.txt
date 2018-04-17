@@ -1,0 +1,12 @@
+
+
+
+
+* L'écran LCD bugge de temps en temps
+% on dirait un problème avec mpc helper ....
+% cela arrive parfois des le premier morçeau
+
+-> un reset a été ajouté avec le bouton 4
+
+* il faut gérer le cas ou un cd stoppe normalement pour l'affichage
+

@@ -6,10 +6,8 @@ from RPi import GPIO
 class FaceButton(object):
 
 
-
     def __init__(self,port,id):
         self.port=port
-        print port
         GPIO.setup(port, GPIO.IN, pull_up_down = GPIO.PUD_UP)
         self.hasBeenSwitched=False
         self.isSwitched=False

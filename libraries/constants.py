@@ -11,6 +11,7 @@ MSG_BUTTON="button"
 
 MSG_PRINT="print"
 MSG_ORDER="order"
+MSG_REFRESH="refresh"
 
 
 

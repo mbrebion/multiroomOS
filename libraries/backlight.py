@@ -1,40 +1,40 @@
 __author__ = 'mbrebion'
 
-from RPi import GPIO
 from config import blDelay
 import time
 import threading
+from libraries.i2clcda import enableBacklight,disableBacklight
 
 class Backlight(threading.Thread):
 
-    def __init__(self,port):
+    def __init__(self,os):
         threading.Thread.__init__(self)
-        self.port=port
-        GPIO.setup(port,GPIO.OUT)
         self.last=time.time()
+        self.os=os
+        self.blOn=False
         self.daemon=True
         self.alive=True
         self.start()
 
     def shutDown(self):
         self.alive=False
-        GPIO.output(self.port,0)
-
+        disableBacklight()
 
     def test(self):
-        if (time.time()-self.last)<blDelay:
-            GPIO.output(self.port,1)
-        else:
-            GPIO.output(self.port,0)
+        if (time.time()-self.last)<blDelay and not self.blOn:
+            enableBacklight()
+            self.blOn=True
+            self.os.menu.askRefreshFromOutside()
 
-        if blDelay<0: # in case of negative value : always enable backlight
-            GPIO.output(self.port,1)
-
+        if (time.time()-self.last)>blDelay and self.blOn:
+            disableBacklight()
+            self.blOn=False
+            self.os.menu.askRefreshFromOutside()
 
     def run(self):
         while(self.alive):
             self.test()
-            time.sleep(0.3)
+            time.sleep(0.4)
 
     def newCommand(self):
         self.last=time.time()

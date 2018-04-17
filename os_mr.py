@@ -2,18 +2,16 @@ __author__ = 'mbrebion'
 
 
 from config import simple
-
+from libraries.mpcHelper import MpcHelper
 if simple:
-    print "simple system selected"
     from simpleIO_mr import SimpleIo
     from simpleMenu import SimpleMenu
 else:
-    print "main system selected"
     from io_mr import Io
     from menu import Menu
 
 import system
-from libraries.constants import MSG_BUTTON,MSG_BACK,MSG_MENU,MSG_SELECT,MSG_VOL,MSG_WIFI,MSG_PRINT,MSG_ORDER
+from libraries.constants import MSG_BUTTON,MSG_BACK,MSG_MENU,MSG_SELECT,MSG_VOL,MSG_WIFI,MSG_PRINT,MSG_ORDER,MSG_REFRESH
 
 
 class Os(object):
@@ -23,7 +21,7 @@ class Os(object):
         # constants
         self.minVol=-48
         self.maxVol=0
-        self.volume=-11
+        self.volume=-15
         self.wifiEnabled=True
         self.askExit=False
         self.lastOrder=0
@@ -42,17 +40,20 @@ class Os(object):
         try:
             system.startCommand("mpc clear") # clear last mpd playlist
             system.startCommand("mpc update")
-            self.io.startIO()
+            system.switchToLocalOutput()
+
+            self.io.startIO() # main os thread
+
         finally:
             if simple==False:
                 Menu.clearProcesses()
 
 
     def takeAction(self,message,value):
-        if message==MSG_WIFI:
+        if message == MSG_WIFI:
             pass
 
-        if message==MSG_VOL:
+        if message == MSG_VOL:
             self.askNewVolume(value)
 
         if message==MSG_MENU:
@@ -73,6 +74,9 @@ class Os(object):
         if message==MSG_ORDER:
             self.askOrder(value)
 
+        if message==MSG_REFRESH:
+            self.askRefresh(value)
+
 
         self.io.askBacklight()
 
@@ -83,9 +87,9 @@ class Os(object):
 
     def askOrder(self,value):
         if value==25:
-            self.menu.outsideRadioAsk()
+            self.menu.syncToSnapServer()
         if value==26:
-            self.menu.clearMPD()
+            self.menu.stopSyncing()
 
 
     def askPrint(sel,value):
@@ -95,22 +99,24 @@ class Os(object):
     def askButtonAction(self,value):
         if value==1 :
             """
-            radio in every room
+            mpd content in every room
             """
-            radioOrder=25
-            clearOrder=26
-            if self.lastOrder!=radioOrder:
-                order=radioOrder
-                self.io.tcpServer.sendToAllDevices(MSG_ORDER+","+str(order));
-                self.lastOrder=order
-                system.sleep(0.1)
-                self.menu.outsideRadioAsk()
-            else :
-                order=clearOrder
-                self.io.tcpServer.sendToAllDevices(MSG_ORDER+","+str(order));
-                self.lastOrder=order
-                self.menu.clearMPD()
+            syncOrder=25
+            endSyncOrder=26
 
+            if self.lastOrder!=syncOrder:
+                order=syncOrder
+                system.switchToSnapCastOutput()
+                self.menu.syncToSnapServer()
+                self.io.tcpServer.sendToAllDevices(MSG_ORDER+","+str(order));
+                self.lastOrder=order
+
+            else :
+                order=endSyncOrder
+                self.io.tcpServer.sendToAllDevices(MSG_ORDER+","+str(order));
+                self.lastOrder=order
+                self.menu.stopSyncing()
+                system.switchToLocalOutput()
 
 
         if value==2 :
@@ -130,14 +136,28 @@ class Os(object):
             if self.askExit==True:
                 self.askNewVolume(0)
                 self.askExit=False
+            else :
+                self.io.resetScreen()
 
 
 
     def refreshView(self):
+        """
+        refresh the view if any changes has occurred with mpd
+        :return: nothing
+        """
+
         if self.menu.requireRefresh():
             self.updateView()
 
-    # interact with menu
+    def askRefresh(self,value):
+        """
+        re-send all text lines to every one (local devices + remotes controls)
+        :return: nothing
+        """
+        self.io.resendTexts()
+
+    ########## interact with menu
     def updateView(self):
         menu,choice,choiceTwo = self.menu.info()
         if menu!="":
@@ -147,12 +167,12 @@ class Os(object):
         if choice!="":
             self.io.writeText(choiceTwo,3)
 
-    def askScrollMenu(self,dec):
 
+    def askScrollMenu(self,dec):
         if dec>0:
-            self.menu.next()
+            self.menu.next(dec)
         else :
-            self.menu.previous()
+            self.menu.previous(dec)
         self.updateView()
 
 
@@ -182,7 +202,7 @@ class Os(object):
         try :
             ndec = max(min(12,dec),-12)
             newVol = min(self.maxVol,max(self.minVol,self.volume +  ndec))
-            self.io.writeText("  Volume : " +str( newVol)+"dB",4)
+            self.io.writeText(" Vol : " +str( newVol)+"dB",4)
             self.volume=newVol
             system.startCommand("amixer -c 0 -q -- set Digital "+str(newVol)+"dB")
         except:

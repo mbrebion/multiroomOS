@@ -6,33 +6,56 @@ import subprocess
 
 class MpcHelper(threading.Thread):
 
+    exist=False
 
     def __init__(self,subMenu):
         threading.Thread.__init__(self)
-        self.daemon=True
-        self.alive=True
-        self.lastText=""
-        self.sm=subMenu
+        self.daemon = True
+        self.alive = True
+
+        self.lastText = ""
+        self.lastStatus = ""
+
+        self.sm = subMenu
+        MpcHelper.exist = True
         self.start()
 
 
     def shutDown(self):
-        self.alive=False
+        self.alive = False
 
     def updateView(self):
         """
         To be improved
         :return:
         """
-        output = subprocess.check_output("/usr/bin/mpc current ",shell=True).split("-")[1].strip('\n')
-        print "output : " , output
-        if self.lastText!=output:
-            self.lastText=output
-            self.sm.actionTag=output
-            self.sm.askRefresh=True
+
+        text = ""
+        status = ""
+        output = subprocess.check_output("/usr/bin/mpc ", shell=True).split("\n")
+        if len(output) == 1:
+            self.sm.actionTagTwo = "  end  "
+            self.sm.askRefresh = True
+            self.alive=False
+
+
+        if len(output) == 4:
+            text =  output[0].split("-")[1].lstrip(" ")
+            status = " -- "+output[1].split("]")[0].lstrip("[") + " -- " +output[1].split("#")[1].split(" ")[0]
+
+
+        if self.lastText != text or self.lastStatus != status:
+            self.lastText = text
+            self.lastStatus = status
+            self.sm.actionTag = text
+            self.sm.actionTagTwo = status
+            print text, status
+
+            self.sm.askRefresh = True
+
 
     def run(self):
         while(self.alive):
-            print "alive mpc helper"
             self.updateView()
-            time.sleep(0.5)
+            time.sleep(0.25)
+        MpcHelper.exist = False

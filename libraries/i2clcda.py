@@ -23,8 +23,17 @@ LCD_LINE_2 = 0xC0 # LCD RAM address for the 2nd line
 LCD_LINE_3 = 0x94 # LCD RAM address for the 3rd line
 LCD_LINE_4 = 0xD4 # LCD RAM address for the 4th line
 
-LCD_BACKLIGHT  = 0x08  # On
-#LCD_BACKLIGHT = 0x00  # Off
+LCD_BACKLIGHT_ON  = 0x08  # On
+LCD_BACKLIGHT_OFF = 0x00  # Off
+LCD_BACKLIGHT = LCD_BACKLIGHT_ON
+
+def enableBacklight():
+  global LCD_BACKLIGHT
+  LCD_BACKLIGHT = LCD_BACKLIGHT_ON
+
+def disableBacklight():
+  global LCD_BACKLIGHT
+  LCD_BACKLIGHT = LCD_BACKLIGHT_OFF
 
 ENABLE = 0b00000100 # Enable bit
 
@@ -46,7 +55,7 @@ def lcd_init():
   lcd_byte(0x32,LCD_CMD) # 110010 Initialise
   lcd_byte(0x06,LCD_CMD) # 000110 Cursor move direction
   lcd_byte(0x0C,LCD_CMD) # 001100 Display On,Cursor Off, Blink Off
-  lcd_byte(0x28,LCD_CMD) # 101000 Data length, number of lines, font size
+  lcd_byte(0x28,LCD_CMD) # 101000 Data length, number of lines, font size : 4 bits
   lcd_byte(0x01,LCD_CMD) # 000001 Clear display
   time.sleep(E_DELAY)
 
@@ -74,6 +83,7 @@ def lcd_toggle_enable(bits):
   time.sleep(E_PULSE)
   bus.write_byte(I2C_ADDR,(bits & ~ENABLE))
   time.sleep(E_DELAY)
+
 
 def lcd_string(message,line):
   # Send string to display

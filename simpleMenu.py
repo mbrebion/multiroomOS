@@ -23,15 +23,14 @@ class SimpleMenu(SubMenu):
 
     ######################################### special commands targeted with buttons actions
 
-    def outsideRadioAsk(self):
-        system.startCommand("mpc clear")
-        system.startCommand("mpc add http://direct.franceinter.fr/live/franceinter-midfi.mp3" )
+    def syncToSnapServer(self):
         system.startCommand("mpc stop")
-        system.startCommand("mpc play")
-
-
-    def clearMPD(self):
         system.startCommand("mpc clear")
+        system.startSnapClient()
+
+    def stopSyncing(self):
+        system.stopSnapClient()
+
 
     #########################################
 
@@ -46,7 +45,7 @@ class SimpleMenu(SubMenu):
         if "culture" in entries:
             self.addEntry(Radio(self,"culture","http://direct.franceculture.fr/live/franceculture-midfi.mp3"))
 
-    def next(self):
+    def next(self, dec=1):
         if self.mode=="menu":
             self.currentSub._next()
             self.previousSelect=self.currentSelect
@@ -55,7 +54,7 @@ class SimpleMenu(SubMenu):
         else:
             self.updateVolumeLevel(1)
 
-    def previous(self):
+    def previous(self,dec=-1):
         if self.mode=="menu":
             self.currentSub._previous()
             self.previousSelect=self.currentSelect

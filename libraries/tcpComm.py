@@ -60,6 +60,7 @@ class ClientThread(threading.Thread):
                     countFail+=1
                     if countFail>=5:
                         self.alive=False
+                        print "client disconnected : ", self.ip
                     raise socket.timeout
 
                 if msg!=False:
