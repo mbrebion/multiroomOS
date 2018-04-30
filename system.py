@@ -24,17 +24,17 @@ def isFile(name):
 
 # server side
 def switchToSnapCastOutput():
-    startCommand("mpc volume 40")
+    startCommand("mpc volume 60")
     startCommand("mpc enable 1")
     startCommand("mpc disable 2")
-    startCommand("mpc volume 40")
+    startCommand("mpc volume 60")
 
 
 def switchToLocalOutput():
-    startCommand("mpc volume 70")
+    startCommand("mpc volume 75")
     startCommand("mpc enable 2")
     startCommand("mpc disable 1")
-    startCommand("mpc volume 70")
+    startCommand("mpc volume 75")
 
 
 subP = False
@@ -53,6 +53,8 @@ def stopSnapClient():
         print "           snapclient killed"
 
 
+def shutdownPi():
+    startCommand("sudo halt")
 
 
 def sleep(tm):

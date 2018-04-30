@@ -2,9 +2,13 @@ __author__ = 'mbrebion'
 
 import subprocess
 from config import radios, entries
-from time import sleep
 import system
 from libraries.mpcHelper import MpcHelper
+
+
+#######################################
+#######   Main menus classes    #######
+#######################################
 
 class SubMenu(object):
     processes=[]  # static var to store all the processes which must be killed on exit
@@ -88,8 +92,6 @@ class SubMenu(object):
 
     def addEntry(self,sub):
         self.list.append(sub)
-
-
 
 class Menu(SubMenu):
 
@@ -178,8 +180,10 @@ class Menu(SubMenu):
         self.currentSub = self.currentSub._back()
 
 
+#######################################
+#########   BlueTooth menus   #########
+#######################################
 
-####################################### BlueTooth menus
 class Bt(SubMenu):
     def __init__(self,parent,name="Bluetooth"):
         SubMenu.__init__(self,parent,name)
@@ -195,9 +199,10 @@ class Bt(SubMenu):
         system.startCommand('sudo /sbin/ifconfig wlan0 up')
         return SubMenu._back(self)
 
+#######################################
+######### Local music menus   #########
+#######################################
 
-
-####################################### Music menus
 
 class Music(SubMenu):
     def __init__(self,parent,name="Local music"):
@@ -230,7 +235,6 @@ class Artists(SubMenu):
         # here, the artist menu is repopulated every time it is selected so that new artists can be retrieved
 
 
-
 class Artist(SubMenu):
     def __init__(self,parent,name):
         SubMenu.__init__(self,parent,name)
@@ -254,6 +258,7 @@ class Artist(SubMenu):
 
     def onShowed(self):
         self.parent.actionTagTwo = "  -- [" + str(self.parent.count+1)+"/"+str(len(self.parent.list)) +"] --"
+
 
 class Album(SubMenu):
     def __init__(self,parent,name):
@@ -323,8 +328,10 @@ class PlayList(SubMenu):
         self.parent=parent
 
 
+#######################################
+#########     Radios menus    #########
+#######################################
 
-####################################### Radios menus
 class Radios(SubMenu):
     def __init__(self,parent,name="Radios"):
         SubMenu.__init__(self,parent,name)
@@ -340,6 +347,7 @@ class Radios(SubMenu):
 
     def onSelected(self):
         SubMenu.onSelected(self)
+
 
 class Radio(SubMenu):
     def __init__(self,parent,name,webAddr):

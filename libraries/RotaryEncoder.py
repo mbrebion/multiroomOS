@@ -42,7 +42,7 @@ class RotaryEncoder(object):
         # add callback event
         GPIO.add_event_detect(self.clk, GPIO.BOTH, callback=self.rotaryCallState,bouncetime=1)
         GPIO.add_event_detect(self.dt, GPIO.BOTH, callback=self.rotaryCallState,bouncetime=1)
-        GPIO.add_event_detect(self.switch, GPIO.BOTH, callback=self.switchCall,bouncetime=50)
+        GPIO.add_event_detect(self.switch, GPIO.BOTH, callback=self.switchCall,bouncetime=200)
 
         # a test on the rotary showed that bouncetime did not exceded 10 \mu s
         # a value of 1ms is therefore safe

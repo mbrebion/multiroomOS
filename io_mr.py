@@ -9,7 +9,6 @@ from libraries.tcpComm import serverThread
 from libraries.constants import MSG_SHUTDOWN,MSG_BUTTON,MSG_BACK,MSG_MENU,MSG_SELECT,MSG_VOL,MSG_WIFI
 
 
-
 class Io(object):
     """
     class dealing with IOs
@@ -21,10 +20,15 @@ class Io(object):
         self.menuCtl=RotaryEncoder(11,15,13,"Menu")
         self.backlight=Backlight(os)
         self.os=os # link to parent
+        #
         self.lines=["","","",""]
+        self.clines=[False,False,False,False]
+        self.physicalLines=[LCD_LINE_1,LCD_LINE_2,LCD_LINE_3,LCD_LINE_4]
+        #
         buttonPorts=[10,8,16,18]
-        buttonIds=[4,2,3,1]
+        buttonIds=[1,3,2,4]
         self.faceButtons=[]
+        self.resend=False
         index=0
         for port in buttonPorts:
             self.faceButtons.append(FaceButton(port,buttonIds[index]))
@@ -41,20 +45,19 @@ class Io(object):
         # TCP comm
         self.tcpServer=serverThread(os)
 
-
-
     def askBacklight(self):
         self.backlight.newCommand()
 
-    def startIO(self):
+    def mainLoop(self):
         """
         main loop of os
         outputs to devices and lcds should only be performed from this thread to prevent concurrency
         Other thread might ask for an output refresh
         :return: nothing
         """
-        self.goOn=True
-        count=0
+        self.goOn = True
+        count = 0
+
         while self.goOn:
 
             # change volume
@@ -88,45 +91,49 @@ class Io(object):
             # refresh view if any changes occurred
             self.os.refreshView()
 
+            self._writeText()
+
             sleep(0.12)
             count+=1
 
         # close tcp server
         self.tcpServer.shutDown()
         self.backlight.shutDown()
-
-
+        self.resendTexts()
 
     def resetScreen(self):
         lcd_init()
-        self.resendTexts()
+        self.askResendTexts()
 
-    def resendTexts(self):
-        for i in [1,2,3,4]:
-            self.writeText(self.lines[i-1],i)
+    def askResendTexts(self):
+        self.resend=True
+
 
     def writeText(self,text,line):
+        """
+        text is locally changed and display next time
+        """
+        id = line-1
+        if self.lines[id] != text :
+            self.lines[id] = text
+            self.clines[id] = True
 
-        # remote displays (if connected)
-        self.tcpServer.sendToAllRemotes(str(line)+";;"+text)
-        # store new content
 
-        self.lines[line-1] = text
-        # LCD screen if connected
-        try :
-            if line==1:
-                oline=LCD_LINE_1
-                lcd_string(text,oline)
-            if line==2:
-                oline=LCD_LINE_2
-                lcd_string(text,oline)
-            if line==3:
-                oline=LCD_LINE_3
-                lcd_string(text,oline)
-            if line==4:
-                oline=LCD_LINE_4
-                lcd_string(text,oline)
+    def _writeText(self):
+        """
+        text is truly outputed by this function, which can only be called by main thread
+        """
+        if self.resend:
+            for i in range(4):
+                self.clines[i]=True
+            self.resend=False
 
-        except :
-            print "lcd screen disconnected "
+        for id in range(4):
+            if self.clines[id]:
+                self.clines[id] = False
 
+                self.tcpServer.sendToAllRemotes(str(id+1)+";;"+self.lines[id])
+                try :
+                    lcd_string(self.lines[id],self.physicalLines[id])
+                except :
+                    print "lcd screen disconnected "

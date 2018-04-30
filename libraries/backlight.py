@@ -24,7 +24,7 @@ class Backlight(threading.Thread):
         if (time.time()-self.last)<blDelay and not self.blOn:
             enableBacklight()
             self.blOn=True
-            self.os.menu.askRefreshFromOutside()
+            # self.os.menu.askRefreshFromOutside()
 
         if (time.time()-self.last)>blDelay and self.blOn:
             disableBacklight()

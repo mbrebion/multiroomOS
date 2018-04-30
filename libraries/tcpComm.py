@@ -11,7 +11,7 @@ from libraries.constants import CLIENT_DEVICE,CLIENT_REMOTE,CLIENT_MAIN
 def connectToHost():
 
     skt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    skt.settimeout(0.4)
+    skt.settimeout(0.5)
     try :
         skt.connect((host, hortPort))
         skt.sendall(CLIENT_DEVICE) # send kind of client to host
@@ -36,7 +36,7 @@ class ClientThread(threading.Thread):
         self.daemon=True
         self.alive=True
 
-        self.kind = self.clientsocket.recv(512).decode().encode("ascii") # kind of client : can be device or remoteControl or mainPlayer
+        self.kind = self.clientsocket.recv(64).decode().encode("ascii") # kind of client : can be device or remoteControl or mainPlayer
         #print "kind of client : " , self.kind
         if self.kind==CLIENT_DEVICE:
             self.clientsocket.sendall(CLIENT_MAIN)
@@ -52,7 +52,7 @@ class ClientThread(threading.Thread):
         while self.alive :
 
             try :
-                r = self.clientsocket.recv(512).decode()
+                r = self.clientsocket.recv(64).decode()
                 msg=r.encode("ascii").split(",")
 
                 # in some cases, a closed client can send numerous void messages
@@ -63,7 +63,7 @@ class ClientThread(threading.Thread):
                         print "client disconnected : ", self.ip
                     raise socket.timeout
 
-                if msg!=False:
+                if msg != False:
                     self.os.takeAction(msg[0],int(msg[1]))
                 sleep(0.02)
 
@@ -108,7 +108,7 @@ class serverThread(threading.Thread):
         self.checkAliveClients()
 
         for client in self.clients:
-            if client.kind==CLIENT_REMOTE:
+            if client.kind == CLIENT_REMOTE:
                 client.send(text)
 
     def checkAliveClients(self):

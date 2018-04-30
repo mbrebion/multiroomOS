@@ -57,5 +57,5 @@ class MpcHelper(threading.Thread):
     def run(self):
         while(self.alive):
             self.updateView()
-            time.sleep(0.25)
+            time.sleep(0.2)
         MpcHelper.exist = False

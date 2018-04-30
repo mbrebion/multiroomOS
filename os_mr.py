@@ -2,7 +2,6 @@ __author__ = 'mbrebion'
 
 
 from config import simple
-from libraries.mpcHelper import MpcHelper
 if simple:
     from simpleIO_mr import SimpleIo
     from simpleMenu import SimpleMenu
@@ -11,8 +10,8 @@ else:
     from menu import Menu
 
 import system
-from libraries.constants import MSG_BUTTON,MSG_BACK,MSG_MENU,MSG_SELECT,MSG_VOL,MSG_WIFI,MSG_PRINT,MSG_ORDER,MSG_REFRESH
-
+from libraries.constants import MSG_BUTTON,MSG_BACK,MSG_MENU,MSG_SELECT,MSG_VOL,MSG_PRINT,MSG_ORDER,MSG_REFRESH
+from threading import Lock
 
 class Os(object):
 
@@ -23,8 +22,9 @@ class Os(object):
         self.maxVol=0
         self.volume=-15
         self.wifiEnabled=True
-        self.askExit=False
+        self.askedExit=False
         self.lastOrder=0
+        self.lock=Lock()
 
 
         if simple:
@@ -37,53 +37,51 @@ class Os(object):
 
         self.askNewVolume(-1)
         # never ending loop
-        try:
-            system.startCommand("mpc clear") # clear last mpd playlist
-            system.startCommand("mpc update")
-            system.switchToLocalOutput()
 
-            self.io.startIO() # main os thread
+        system.startCommand("mpc clear") # clear last mpd playlist
+        system.startCommand("mpc update")
+        system.switchToLocalOutput()
+        self.io.mainLoop() # main os thread
 
-        finally:
-            if simple==False:
-                Menu.clearProcesses()
-
+        if simple==False:
+            Menu.clearProcesses()
 
     def takeAction(self,message,value):
-        if message == MSG_WIFI:
-            pass
+        """
+        can be called by different means (and threads)
+        :param message: kind of action to take
+        :param value: parameter associated with the action asked
+        :return: nothing
+        """
+        with self.lock:
+            self.io.askBacklight()
 
-        if message == MSG_VOL:
-            self.askNewVolume(value)
+            if message == MSG_VOL:
+                self.askNewVolume(value)
 
-        if message==MSG_MENU:
-            self.askScrollMenu(value)
+            if message==MSG_MENU:
+                self.askScrollMenu(value)
 
-        if message==MSG_SELECT:
-            self.askSelect(value)
+            if message==MSG_SELECT:
+                self.askSelect(value)
 
-        if message==MSG_BACK:
-            self.askBack(value)
+            if message==MSG_BACK:
+                self.askBack(value)
 
-        if message==MSG_BUTTON:
-            self.askButtonAction(value)
+            if message==MSG_BUTTON:
+                self.askButtonAction(value)
 
-        if message==MSG_PRINT:
-            self.askPrint(value)
+            if message==MSG_PRINT:
+                self.askPrint(value)
 
-        if message==MSG_ORDER:
-            self.askOrder(value)
+            if message==MSG_ORDER:
+                self.askOrder(value)
 
-        if message==MSG_REFRESH:
-            self.askRefresh(value)
-
-
-        self.io.askBacklight()
-
+            if message==MSG_REFRESH:
+                self.askRefresh(value)
 
     def connectionLost(self):
         self.io.connectedToHost=False
-
 
     def askOrder(self,value):
         if value==25:
@@ -91,12 +89,12 @@ class Os(object):
         if value==26:
             self.menu.stopSyncing()
 
-
     def askPrint(sel,value):
         print value
 
-
     def askButtonAction(self,value):
+        print value
+
         if value==1 :
             """
             mpd content in every room
@@ -120,85 +118,48 @@ class Os(object):
 
 
         if value==2 :
-            self.askExit = not self.askExit
-            if self.askExit:
-                self.io.writeText("Shutdown ? (Y-3,N-4)",4)
-            else:
-                self.askNewVolume(0)
-
-        if value==3 :
-            if self.askExit==True:
-                system.startCommand("sudo sleep 3 ; sudo shutdown now")
+            if self.askedExit:
                 self.safeStop()
+            else:
+                self.io.writeText("Shutdown ? (Y-2,N-4)",4)
+                self.askedExit=True
+
 
 
         if value==4 :
-            if self.askExit==True:
+            if self.askedExit==True:
                 self.askNewVolume(0)
-                self.askExit=False
+                self.askedExit=False
             else :
                 self.io.resetScreen()
-
-
-
-    def refreshView(self):
-        """
-        refresh the view if any changes has occurred with mpd
-        :return: nothing
-        """
-
-        if self.menu.requireRefresh():
-            self.updateView()
 
     def askRefresh(self,value):
         """
         re-send all text lines to every one (local devices + remotes controls)
         :return: nothing
         """
-        self.io.resendTexts()
-
-    ########## interact with menu
-    def updateView(self):
-        menu,choice,choiceTwo = self.menu.info()
-        if menu!="":
-            self.io.writeText(menu,1)
-        if choice!="":
-            self.io.writeText(choice,2)
-        if choice!="":
-            self.io.writeText(choiceTwo,3)
-
+        self.io.askResendTexts()
 
     def askScrollMenu(self,dec):
         if dec>0:
             self.menu.next(dec)
         else :
             self.menu.previous(dec)
-        self.updateView()
-
+        self.menu.askRefreshFromOutside()
 
     def askSelect(self,value):
         self.menu.select()
-        self.updateView()
+        self.menu.askRefreshFromOutside()
 
     def askBack(self,value):
         self.menu.back()
-        self.updateView()
-
-
-
-    def safeStop(self):
-        self.io.goOn=False
-        system.startCommand("mpc stop")
-        system.startCommand("mpc clear")
-        self.io.writeText("Exiting", 1)
-
-    def checkStopAsked(self):
-        if system.isFile("/home/pi/os/.stop"):
-            system.startCommand("rm /home/pi/os/.stop")
-            self.safeStop()
-
+        self.menu.askRefreshFromOutside()
 
     def askNewVolume(self,dec):
+        """ must be changed to fulfill with updateView patern asked from main thread in update is required
+        :param dec:
+        :return:
+        """
         try :
             ndec = max(min(12,dec),-12)
             newVol = min(self.maxVol,max(self.minVol,self.volume +  ndec))
@@ -209,5 +170,40 @@ class Os(object):
             pass
 
 
+######## - ######
 
+    def updateView(self):
+        menu,choice,choiceTwo = self.menu.info()
+        if menu!="":
+            self.io.writeText(menu,1)
+        if choice!="":
+            self.io.writeText(choice,2)
+        if choice!="":
+            self.io.writeText(choiceTwo,3)
+
+    def safeStop(self):
+        self.io.goOn=False
+        system.startCommand("mpc stop")
+        system.startCommand("mpc clear")
+        self.io.writeText("Exiting", 1)
+        system.shutdownPi()
+
+    def checkStopAsked(self):
+        if system.isFile("/home/pi/os/.stop"):
+            system.startCommand("rm /home/pi/os/.stop")
+            self.safeStop()
+
+    def refreshView(self):
+        """
+        refresh the view if any changes has occurred with mpd
+        :return: nothing
+        """
+        if self.menu.requireRefresh():
+            self.updateView()
+
+
+
+
+
+# start os !
 os=Os()

@@ -13,7 +13,7 @@ class FaceButton(object):
         self.isSwitched=False
         self.id=id
 
-        GPIO.add_event_detect(self.port, GPIO.FALLING, callback=self.event,bouncetime=100)
+        GPIO.add_event_detect(self.port, GPIO.FALLING, callback=self.event,bouncetime=200)
 
 
     def event(self,channel):
