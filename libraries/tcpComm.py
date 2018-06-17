@@ -5,15 +5,24 @@ import socket
 from time import sleep
 import threading
 from config import host,hortPort
+
 from libraries.constants import CLIENT_DEVICE,CLIENT_REMOTE,CLIENT_MAIN
 
 
 def connectToHost():
-
+    """
+    function used by simple hifi devices to connect to host (main hifi device)
+    """
+    socket.setdefaulttimeout(0.5)
+    try :
+        addr=socket.gethostbyname(host+".local")
+    except socket.gaierror :
+        return False
+    print addr
     skt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     skt.settimeout(0.5)
     try :
-        skt.connect((host, hortPort))
+        skt.connect((addr, hortPort))
         skt.sendall(CLIENT_DEVICE) # send kind of client to host
     except socket.error :
         return False
@@ -101,7 +110,11 @@ class serverThread(threading.Thread):
 
         for client in self.clients:
             if client.kind==CLIENT_DEVICE:
-                client.send(text)
+                try:
+                    client.send(text)
+                except :
+                    print "error in send to client device"
+                    client.alive=False
 
     def sendToAllRemotes(self,text):
         # send msg to all client connected
@@ -109,7 +122,11 @@ class serverThread(threading.Thread):
 
         for client in self.clients:
             if client.kind == CLIENT_REMOTE:
-                client.send(text)
+                try :
+                    client.send(text)
+                except :
+                    print "error in send to client remotes"
+                    client.alive=False
 
     def checkAliveClients(self):
         for client in self.clients:

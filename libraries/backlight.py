@@ -29,7 +29,7 @@ class Backlight(threading.Thread):
         if (time.time()-self.last)>blDelay and self.blOn:
             disableBacklight()
             self.blOn=False
-            self.os.menu.askRefreshFromOutside()
+            self.os.askRefresh(0)
 
     def run(self):
         while(self.alive):

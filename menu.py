@@ -111,6 +111,8 @@ class Menu(SubMenu):
         if "localMusic" in entries :
             self.addEntry(Music(self))
 
+        if "cd" in entries :
+            self.addEntry(CD(self))
 
 
     ######################################### special commands targeted with buttons actions
@@ -342,7 +344,7 @@ class Radios(SubMenu):
             self.addEntry(Radio(self,name,webAddr))
 
     def _back(self):
-        system.startCommand("mpc stop")
+        system.startCommand("mpc clear")
         return SubMenu._back(self)
 
     def onSelected(self):
@@ -363,6 +365,178 @@ class Radio(SubMenu):
         system.startCommand("mpc clear")
         system.startCommand("mpc add \""+self.webAddr+"\"" )
         system.startCommand("mpc play")
+
+
+#######################################
+########     Controls menus    ########
+#######################################
+class SubSetting(SubMenu):
+    """
+    this class defines a special kind of submenu dedicated to change settings
+    these submenus can just be shown and not entered : they must display their attribute and can be modified with the volume rotary encoder
+    """
+    def __init__(self,parent,name,hint):
+        SubMenu.__init__(self,parent,name)
+        self.property=False # to be overriden
+        self.hint=hint
+        self.actionTagTwo=hint
+
+    def _showProperty(self):
+        """
+        a string containing the property must be returned. Must be overriden.
+        """
+        pass
+
+    def _modifyProperty(self,dec):
+        """
+        The property must be changed according to dec. Must be overriden.
+        """
+        pass
+
+    def update(self,dec):
+        self.modifyProperty(dec)
+        out=self.showProperty()
+        self.actionTag=self.name+ " : " + out
+
+
+
+class Settings(SubMenu):
+    def __init__(self,parent,name="Reglages"):
+        SubMenu.__init__(self,parent,name)
+        self.addEntry(SettingsCD(self))
+        self.addEntry(SettingsMPD(self))
+        self.addEntry(SettingsWL(self))
+
+
+class SettingsCD(SubMenu):
+    def __init__(self,parent,name="Reglages CD"):
+        SubMenu.__init__(self,parent,name)
+
+class MagicMode(SubSetting):
+    def __init__(self,parent,name="Magic Mode", hint="lecture silencieuse"):
+        SubSetting.__init__(self,parent,name,hint)
+        self.property=False
+
+
+
+class SettingsMPD(SubMenu):
+    def __init__(self,parent,name="Reglages MPD"):
+        SubMenu.__init__(self,parent,name)
+
+class SettingsWL(SubMenu):
+    def __init__(self,parent,name="Reglages Wireless"):
+        SubMenu.__init__(self,parent,name)
+
+#######################################
+##########     CDs menus    ###########
+#######################################
+
+
+class CD(SubMenu):
+    def __init__(self,parent,name="Lecteur CD"):
+        SubMenu.__init__(self,parent,name)
+        self.addEntry(CDPlayer(self))
+        self.addEntry(Eject(self))
+
+class Eject(SubMenu):
+    def __init__(self,parent,name="Ejection"):
+        SubMenu.__init__(self,parent,name)
+        self.selectable=False
+
+    def onSelected(self):
+        system.startCommand("sudo eject")
+
+class CDPlayer(SubMenu):
+    def __init__(self,parent,name="Lecture"):
+        SubMenu.__init__(self,parent,name)
+        self.cdName=""
+        self.cdArtist=""
+        self.tracksNB=0
+        self.tracks=[]
+        self.play=False
+        self.loaded=False
+
+    def _back(self):
+        system.startCommand("mpc clear")
+        self.loaded=False
+        self.play=False
+        self.killHelper()
+        return SubMenu._back(self)
+
+
+    def killHelper(self):
+        if MpcHelper.exist :
+            self.mpcH.shutDown()
+            system.sleep(0.3)
+
+    def resetHelper(self):
+        self.killHelper() # kill helper if necessary
+        self.mpcH=MpcHelper(self,self.tracks)
+
+
+    def onSelected(self):
+        SubMenu.onSelected(self)
+
+
+        if self.loaded==False:
+            output = system.startReturnCommand(" /usr/bin/cdcd tracks")
+            self.cdName = output[0].split("name:")[1].lstrip(' ')
+            self.cdArtist = output[1].split("artist:")[1].lstrip(' ')
+            self.tracksNB=int(output[2].split("tracks:")[1].split("Disc")[0].lstrip(' '))
+            idec=6
+            system.startCommand("mpc clear")
+            print output
+
+            for i in range(self.tracksNB):
+                self.tracks.append(output[idec+i].split("]")[1].lstrip(' '))
+                system.startCommand("mpc add cdda:///"+str(i+1))
+            self.loaded=True
+            self.name="CD : "+self.cdName
+            self.resetHelper()
+
+        if self.play==False:
+            system.startCommand("mpc play")
+            self.mpcH.updateView()
+        else:
+            system.startCommand("mpc pause")
+            self.mpcH.updateView()
+
+
+        self.play = not self.play
+
+
+    def _next(self):
+        system.startCommand("mpc next")
+        self.mpcH.updateView()
+
+    def _previous(self):
+        system.startCommand("mpc prev")
+        self.mpcH.updateView()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

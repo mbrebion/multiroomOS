@@ -13,7 +13,7 @@ class SimpleIo(object):
 
     def __init__(self,os):
         # setup encoders
-        self.menuCtl=RotaryEncoder(13,15,11,"Menu")
+        self.menuCtl=RotaryEncoder([8,10,16],"Menu")
         self.os=os # link to parent
         # init screen
         self.connectedToHost=False # set to true if connection is established with main hifi system
@@ -45,10 +45,12 @@ class SimpleIo(object):
             dec=self.menuCtl.getDec()
             if dec!=0 :
                 self.os.takeAction(MSG_MENU,dec)
+                print dec
 
             # select button status
             if self.menuCtl.getSwitch():
                 self.os.takeAction(MSG_SELECT,0)
+                print "pushed"
 
             # exit ?
             self.os.checkStopAsked()

@@ -9,7 +9,6 @@ __author__ = 'osoyoo'
 #
 import smbus
 import time
-import thread
 
 # Define some device parameters
 I2C_ADDR  = 0x27 # I2C device address, if any error, change this address to 0x3f
@@ -88,7 +87,6 @@ def lcd_toggle_enable(bits):
 
 def lcd_string(message,line):
   # Send string to display
-  print "thread id : " + str(thread.get_ident()) + "   |  " + message
   message = message.ljust(LCD_WIDTH," ")
   lcd_byte(line, LCD_CMD)
 

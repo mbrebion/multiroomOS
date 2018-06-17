@@ -7,9 +7,9 @@ class RotaryEncoder(object):
     this class is dedicated to deal with a rotary encoder and manage it
     """
 
-    def __init__(self,switch,clk,dt,name):
+    def __init__(self,pins,name):
         """
-
+        # pins=[switch,clk,dt]
         :param clk: pin for clk
         :param dt: pin for ds
         :param switch: pin for switch
@@ -18,9 +18,9 @@ class RotaryEncoder(object):
         """
         self.counter=0
         self.oldCounter=0
-        self.clk=clk
-        self.dt=dt
-        self.switch=switch
+        self.clk=pins[1]
+        self.dt=pins[2]
+        self.switch=pins[0]
         self.name=name
 
 

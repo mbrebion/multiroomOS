@@ -40,7 +40,12 @@ class Os(object):
 
         system.startCommand("mpc clear") # clear last mpd playlist
         system.startCommand("mpc update")
-        system.switchToLocalOutput()
+        if not simple :
+            system.switchToLocalOutput()
+
+        #settings :
+        system.openShelf()
+
         self.io.mainLoop() # main os thread
 
         if simple==False:
@@ -186,6 +191,7 @@ class Os(object):
         system.startCommand("mpc stop")
         system.startCommand("mpc clear")
         self.io.writeText("Exiting", 1)
+        system.closeShelf()
         system.shutdownPi()
 
     def checkStopAsked(self):

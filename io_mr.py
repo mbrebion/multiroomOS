@@ -7,7 +7,7 @@ from libraries.faceButton import FaceButton
 from time import sleep
 from libraries.tcpComm import serverThread
 from libraries.constants import MSG_SHUTDOWN,MSG_BUTTON,MSG_BACK,MSG_MENU,MSG_SELECT,MSG_VOL,MSG_WIFI
-
+from config import rotOne,rotTwo
 
 class Io(object):
     """
@@ -16,8 +16,8 @@ class Io(object):
 
     def __init__(self,os):
         # setup encoders
-        self.volumeCtl=RotaryEncoder(19,23,21,"Volume")
-        self.menuCtl=RotaryEncoder(11,15,13,"Menu")
+        self.volumeCtl=RotaryEncoder(rotOne,"Volume")
+        self.menuCtl=RotaryEncoder(rotTwo,"Menu")
         self.backlight=Backlight(os)
         self.os=os # link to parent
         #
@@ -99,7 +99,7 @@ class Io(object):
         # close tcp server
         self.tcpServer.shutDown()
         self.backlight.shutDown()
-        self.resendTexts()
+        self.askResendTexts()
 
     def resetScreen(self):
         lcd_init()
@@ -107,7 +107,6 @@ class Io(object):
 
     def askResendTexts(self):
         self.resend=True
-
 
     def writeText(self,text,line):
         """
@@ -118,10 +117,9 @@ class Io(object):
             self.lines[id] = text
             self.clines[id] = True
 
-
     def _writeText(self):
         """
-        text is truly outputed by this function, which can only be called by main thread
+        text is truly output by this function, which can only be called by main thread
         """
         if self.resend:
             for i in range(4):
@@ -131,9 +129,8 @@ class Io(object):
         for id in range(4):
             if self.clines[id]:
                 self.clines[id] = False
-
                 self.tcpServer.sendToAllRemotes(str(id+1)+";;"+self.lines[id])
                 try :
                     lcd_string(self.lines[id],self.physicalLines[id])
                 except :
-                    print "lcd screen disconnected "
+                    pass

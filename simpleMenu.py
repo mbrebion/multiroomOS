@@ -17,16 +17,17 @@ class SimpleMenu(SubMenu):
 
         self.simple=simple
         self.mode="menu"
-        system.startCommand("mpc volume  50")
+        system.startCommand("mpc volume  70")
         self.configureEntries()
 
 
     ######################################### special commands targeted with buttons actions
+    def askRefreshFromOutside(self):
+        pass
 
     def syncToSnapServer(self):
-        system.startCommand("mpc stop")
         system.startCommand("mpc clear")
-        system.startSnapClient()
+        system.startSnapClientSimple()
 
     def stopSyncing(self):
         system.stopSnapClient()
@@ -46,28 +47,17 @@ class SimpleMenu(SubMenu):
             self.addEntry(Radio(self,"culture","http://direct.franceculture.fr/live/franceculture-midfi.mp3"))
 
     def next(self, dec=1):
-        if self.mode=="menu":
-            self.currentSub._next()
-            self.previousSelect=self.currentSelect
-            self.currentSelect=self.list[self.count]
-            self.update()
-        else:
-            self.updateVolumeLevel(1)
+            self.updateVolumeLevel(dec)
 
     def previous(self,dec=-1):
-        if self.mode=="menu":
-            self.currentSub._previous()
-            self.previousSelect=self.currentSelect
-            self.currentSelect=self.list[self.count]
-            self.update()
-        else:
-            self.updateVolumeLevel(-1)
+            self.updateVolumeLevel(dec)
 
     def updateVolumeLevel(self,dec):
         if dec>0:
-            system.startCommand("mpc volume  +4")
+            system.startCommand("amixer sset 'Master' "+str(dec)+"%+")
         else:
-            system.startCommand("mpc volume -4")
+            system.startCommand("amixer sset 'Master' "+str(abs(dec))+"%-")
+        print "change volume : " + str(dec)
 
     def update(self):
         try:
@@ -86,8 +76,15 @@ class SimpleMenu(SubMenu):
     def select(self):
         if self.mode=="menu":
             self.mode="vol"
+            system.startCommand("mpc clear")
         else:
             self.mode="menu"
+            system.startCommand("mpc clear")
+
+            system.startCommand("mpc add 'http://direct.franceinter.fr/live/franceinter-midfi.mp3'" )
+            system.startCommand("mpc play")
+
+        print self.mode
 
     def back(self):
         pass

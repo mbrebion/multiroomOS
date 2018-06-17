@@ -10,12 +10,16 @@ radios.append(["France Culture","http://direct.franceculture.fr/live/francecultu
 radios.append(["Rire & Chansons","http://cdn.nrjaudio.fm/audio1/fr/30401/mp3_128.mp3?origine=fluxradios"])
 
 
-
+# rotaries
+rotOne=[11,15,13]
+rotTwo=[19,23,21]
 
 # param of local player
 simple=False  # in simple mode, only one rotary encoder
-entries=["bt","radios","localMusic"]
 
+
+entries=["bt","radios","localMusic","cd"]
+server = False
 
 
 
