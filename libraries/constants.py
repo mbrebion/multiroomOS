@@ -15,7 +15,16 @@ MSG_REFRESH="refresh"
 
 
 
+MODE_LOCAL="local"
+MODE_BTSTREAM="btStream"
+MODE_SNAPSTREAM="snapStream"
+
 
 CLIENT_REMOTE="remoteControl"
 CLIENT_DEVICE="device"
 CLIENT_MAIN="mainPlayer"
+
+
+
+ORDER_SSYNC=25
+ORDER_SSTOP=26

@@ -13,6 +13,46 @@ def startCommand(command,output=False):
     osys.system(cmd)
 
 
+
+
+def checkCDinDB(album,artist):
+    cmd=" mpc search Album \""+ album+"\" artist  \"" +artist+"\" "
+    print cmd
+    output = startReturnCommand(cmd)
+    return len(output)!=0
+
+
+def isBluetoothDevicePlaying():
+    """
+    :return: True if bluetooth device is playing, else False
+    """
+    out=startReturnCommand("pactl list sources | grep State")
+    outSTR=""
+    for st in out:
+        outSTR=outSTR+st
+
+    return ("RUNNING" in outSTR)
+
+def killBluetoothStream():
+    startCommand("pactl suspend-source 1") # this may be improved in case of multiple sources
+    # this commands stop the stream receiving but not the stream itself; It means the device will still play after ths command.
+    # In addition to, the device must disconnect and reconnect to stream again properly
+
+
+wifiStatus=True
+def shutdownWifi():
+    global wifiStatus
+    if wifiStatus:
+        startCommand("sudo ifconfig wlan0 down")
+        wifiStatus=False
+
+def restartWifi():
+    global wifiStatus
+    if not wifiStatus:
+        startCommand("sudo ifconfig wlan0 up")
+        wifiStatus=True
+
+
 def startReturnCommand(command):
     return subprocess.check_output(command, shell=True).split("\n")
 
@@ -45,7 +85,6 @@ def closeShelf():
 
 # server side
 def switchToSnapCastOutput():
-
     startCommand("mpc enable 1")
     startCommand("mpc disable 2")
     startCommand("mpc volume 70")
@@ -68,7 +107,6 @@ def startSnapClientSimple():
     global subP
     FNULL = open(osys.devnull, 'w')
     subP=subprocess.Popen(['/usr/bin/snapclient', '-s 2 '],stdout=FNULL, stderr=subprocess.STDOUT)
-    print "           snapclient started (simple)"
 
 def startSnapClient():
     """
@@ -78,7 +116,6 @@ def startSnapClient():
     global subP
     FNULL = open(osys.devnull, 'w')
     subP=subprocess.Popen(['/usr/bin/snapclient', '-s 6 '],stdout=FNULL, stderr=subprocess.STDOUT)
-    print "           snapclient started (complex)"
 
 
 def stopSnapClient():
@@ -86,7 +123,7 @@ def stopSnapClient():
     if subP != False:
         subP.kill()
         subP=False
-        print "           snapclient killed"
+        print "     snapclient killed"
 
 
 def shutdownPi():

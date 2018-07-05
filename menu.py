@@ -4,6 +4,8 @@ import subprocess
 from config import radios, entries
 import system
 from libraries.mpcHelper import MpcHelper
+from config import lcdLines # dangerous, to be deleted# dangerous, to be deleted
+
 
 
 #######################################
@@ -30,12 +32,16 @@ class SubMenu(object):
         self.actionTag=""
         self.actionTagTwo=""
         self.askRefresh=False # if set to true, a new refresh will be triggered at next io loop
-
+        self.kind="menu"
         self.selectable=True
 
     def explorable(self):
         return len(self.list) != 0
 
+    def subMenuShown(self):
+        if len(self.list)==0:
+            return self
+        return self.list[self.count]
 
     def _next(self):
         self.count+=1
@@ -64,7 +70,6 @@ class SubMenu(object):
         while not found:
             print sub.name
             if sub.parent.name=="Menu":
-                found=True
                 return sub.parent
             else :
                 sub=sub.parent
@@ -93,6 +98,43 @@ class SubMenu(object):
     def addEntry(self,sub):
         self.list.append(sub)
 
+class SubSetting(SubMenu):
+    """
+    this class defines a special kind of submenu dedicated to change settings
+    these submenus can just be shown and not entered : they must display their attribute and can be modified with the volume rotary encoder
+    """
+    def __init__(self,parent,name,hint):
+        SubMenu.__init__(self,parent,name)
+        self.property=False # to be overriden
+        self.hint=hint
+        self.trueName=name
+        self.actionTagTwo=hint
+        self.kind="setting"
+        self.selectable=False
+        self.update(0)
+
+    def _showProperty(self):
+        """
+        a string containing the property must be returned. Must be overiden.
+        """
+        pass
+
+    def _modifyProperty(self,dec):
+        """
+        The property must be changed according to dec. Must be overiden.
+        """
+        pass
+
+    def update(self,dec):
+        self._modifyProperty(dec)
+        out=self._showProperty()
+        if lcdLines>2:
+            self.actionTag= out
+        else :
+            self.name= self.trueName +" : "+  out
+
+        self.parent.askRefresh=True
+
 class Menu(SubMenu):
 
     def __init__(self,simple=False):
@@ -106,21 +148,29 @@ class Menu(SubMenu):
     def configureEntries(self):
         if "bt" in entries :
             self.addEntry(Bt(self))
+
         if "radios" in entries :
-            self.addEntry(Radios(self))
+            self.radio=Radios(self)
+            self.addEntry(self.radio)
+
         if "localMusic" in entries :
             self.addEntry(Music(self))
+
+        if "alarm" in entries :
+            self.alarm=Alarm(self)
+            self.addEntry(self.alarm)
 
         if "cd" in entries :
             self.addEntry(CD(self))
 
 
-    ######################################### special commands targeted with buttons actions
-    def syncToSnapServer(self):
-        system.startSnapClient()
+    def getActiveAlarms(self):
+        if "alarm" not in entries :
+            return []
+        else :
+            return self.alarm.getActiveAlarms()
 
-    def stopSyncing(self):
-        system.stopSnapClient()
+
 
     ##########################################
 
@@ -152,11 +202,14 @@ class Menu(SubMenu):
         return out
 
     def info(self):
+        # function use to provide output text
         if self.currentSub.explorable():
             return self.currentSub.name,self.currentSub.list[self.currentSub.count].name,self.currentSub.actionTagTwo
         else :
             return self.currentSub.name, self.currentSub.actionTag, self.currentSub.actionTagTwo
 
+    def isSettingShown(self):
+        return self.currentSub.subMenuShown().kind=="setting"
 
     def select(self):
         """
@@ -173,6 +226,16 @@ class Menu(SubMenu):
                 except:
                     pass
 
+    def forceRadio(self):
+        """
+        this force the radio menu : usefull for alarms
+        :return: nothing
+        """
+        if "radios" in entries :
+            self.currentSub=self.radio
+            self.radio.list[0].onShowed()
+            self.currentSub.askRefresh=True
+
     def back(self):
         """
         this function is called when physical VOLUME button is pressed or when asked by remote control
@@ -180,10 +243,127 @@ class Menu(SubMenu):
         """
 
         self.currentSub = self.currentSub._back()
-
+        self.currentSub[self.currentSub.count].onShowed()
 
 #######################################
-#########   BlueTooth menus   #########
+#########    Alarm  menus     #########
+#######################################
+
+class Alarm(SubMenu):
+    def __init__(self,parent,name="Reveil"):
+        SubMenu.__init__(self,parent,name)
+        self.items=[]
+        self.populate()
+        print(self.list)
+
+    def getActiveAlarms(self):
+        out=[]
+        for alarm in self.items:
+            if alarm.enable :
+                out.append(alarm)
+        return out
+
+
+    def addItem(self,item):
+        self.items.append(item)
+
+    def removeItem(self,item):
+        self.items.remove(item)
+
+    def populate(self):
+        self.clearEntries()
+        for item in self.items :
+            self.addEntry(item)
+        self.addEntry(NewAlarm(self))
+
+class NewAlarm(SubMenu):
+    def __init__(self,parent,name="ajout Reveil"):
+        SubMenu.__init__(self,parent,name)
+        self.th=TimeHour(self)
+        self.tm=TimeMinute(self)
+        self.addEntry(self.th)
+        self.addEntry(self.tm)
+        self.addEntry(CreateAlarm(self))
+
+    def _back(self):
+        self.parent.populate()
+        return SubMenu._back(self)
+
+class CreateAlarm(SubMenu):
+    def __init__(self,parent,name="Ajouter"):
+        SubMenu.__init__(self,parent,name)
+        self.actionTag="Ajoutee"
+
+
+    def onSelected(self):
+        SubMenu.onSelected(self)
+        item=AlarmItem(self.parent.parent,self.parent.th.property,self.parent.tm.property)
+        self.parent.parent.addItem(item)
+
+
+class TimeHour(SubSetting):
+    def __init__(self,parent,name="Heure ", hint="selection heure"):
+        SubSetting.__init__(self,parent,name,hint)
+        self.property=7
+
+    def _showProperty(self):
+        if self.property<10:
+            return "0"+str(self.property)
+        else:
+            return str(self.property)
+
+    def _modifyProperty(self,dec):
+        nh=self.property+dec
+        if nh>23:
+            nh = 0
+        if nh<0:
+            nh=23
+        self.property=nh
+        print nh
+
+class TimeMinute(SubSetting):
+    def __init__(self,parent,name="Minute", hint="selection minute"):
+        SubSetting.__init__(self,parent,name,hint)
+        self.property=0
+
+    def _showProperty(self):
+        if self.property<10:
+            return "0"+str(self.property)
+        else:
+            return str(self.property)
+
+    def _modifyProperty(self,dec):
+        nh=self.property+dec
+        if nh>59:
+            nh = 0
+        if nh<0:
+            nh=59
+        self.property=nh
+
+class AlarmItem(SubMenu):
+    def __init__(self,parent,hour,minute,name="heure : "):
+        SubMenu.__init__(self,parent,name)
+        self.hour=hour
+        self.minute=minute
+        self.enable=True
+        self.reseted=True
+        self.updateName()
+
+    def updateName(self):
+        if self.enable:
+            oute="oui"
+        else :
+            oute="non"
+        self.name = "a : " + str(self.hour)+":"+str(self.minute)+" " + oute
+
+
+    def onSelected(self):
+        self.enable != self.enable
+        self.onShowed()
+        self.askRefresh=True
+
+#######################################
+#########   BlueTooth menus   #########  to be deleted
 #######################################
 
 class Bt(SubMenu):
@@ -224,12 +404,14 @@ class Artists(SubMenu):
         self.clearEntries()
         # add mpc update here ?
         output = subprocess.check_output("/usr/bin/mpc list AlbumArtist",shell=True)
-        allArtists=output.split('\n')[1:-1] # this contains all artist which released at least an album !
-        # first item appears to be a blank line
+        allArtists=output.split('\n')
+
+
         self.clearEntries()
         for name in allArtists:
-            artist=Artist(self,name)
-            self.addEntry(artist)
+            if name.strip("")!="":
+                artist=Artist(self,name)
+                self.addEntry(artist)
 
     def onSelected(self):
         SubMenu.onSelected(self)
@@ -259,7 +441,10 @@ class Artist(SubMenu):
             pass
 
     def onShowed(self):
-        self.parent.actionTagTwo = "  -- [" + str(self.parent.count+1)+"/"+str(len(self.parent.list)) +"] --"
+        if lcdLines>2 :
+            self.parent.actionTagTwo = "  -- [" + str(self.parent.count+1)+"/"+str(len(self.parent.list)) +"] --"
+        else :
+            self.parent.name="Artists " + "[" + str(self.parent.count+1)+"/"+str(len(self.parent.list)) +"]"
 
 
 class Album(SubMenu):
@@ -361,7 +546,7 @@ class Radio(SubMenu):
 
     def onShowed(self):
         SubMenu.onShowed(self)
-        print "on showed + ", self.name
+
         system.startCommand("mpc clear")
         system.startCommand("mpc add \""+self.webAddr+"\"" )
         system.startCommand("mpc play")
@@ -370,34 +555,6 @@ class Radio(SubMenu):
 #######################################
 ########     Controls menus    ########
 #######################################
-class SubSetting(SubMenu):
-    """
-    this class defines a special kind of submenu dedicated to change settings
-    these submenus can just be shown and not entered : they must display their attribute and can be modified with the volume rotary encoder
-    """
-    def __init__(self,parent,name,hint):
-        SubMenu.__init__(self,parent,name)
-        self.property=False # to be overriden
-        self.hint=hint
-        self.actionTagTwo=hint
-
-    def _showProperty(self):
-        """
-        a string containing the property must be returned. Must be overriden.
-        """
-        pass
-
-    def _modifyProperty(self,dec):
-        """
-        The property must be changed according to dec. Must be overriden.
-        """
-        pass
-
-    def update(self,dec):
-        self.modifyProperty(dec)
-        out=self.showProperty()
-        self.actionTag=self.name+ " : " + out
-
 
 
 class Settings(SubMenu):
@@ -437,14 +594,40 @@ class CD(SubMenu):
         SubMenu.__init__(self,parent,name)
         self.addEntry(CDPlayer(self))
         self.addEntry(Eject(self))
+        self.addEntry(Rip(self))
+        self.upToDate = False
+        self.inDB=False
+
+    def onShowed(self):
+        pass
+
+
+class Rip(SubMenu):
+    def __init__(self,parent,name="Ripping"):
+        SubMenu.__init__(self,parent,name)
+        self.selectable = False
+        self.state=""
+
+    def onSelected(self):
+        if self.state=="":
+            self.state="on duty"
+            system.startCommand(" {abcde -N}& ")
+        else:
+            self.state=""
+            system.startCommand(" pkill abcde ; pkill cdpara ")
+        self.name="Ripping "+self.state
+
+
+
 
 class Eject(SubMenu):
     def __init__(self,parent,name="Ejection"):
         SubMenu.__init__(self,parent,name)
-        self.selectable=False
+        self.selectable = False
 
     def onSelected(self):
         system.startCommand("sudo eject")
+        self.parent.upToDate = False
 
 class CDPlayer(SubMenu):
     def __init__(self,parent,name="Lecture"):
@@ -455,6 +638,9 @@ class CDPlayer(SubMenu):
         self.tracks=[]
         self.play=False
         self.loaded=False
+
+    def onShowed(self):
+        self.updateInfos()
 
     def _back(self):
         system.startCommand("mpc clear")
@@ -473,25 +659,41 @@ class CDPlayer(SubMenu):
         self.killHelper() # kill helper if necessary
         self.mpcH=MpcHelper(self,self.tracks)
 
+    def updateInfos(self):
+        if not self.parent.upToDate:
+            self.loaded=False
+            try:
+                output = system.startReturnCommand(" /usr/bin/cdcd tracks")
+                self.cdName = output[0].split("name:")[1].lstrip(' ')
+                self.cdArtist = output[1].split("artist:")[1].lstrip(' ')
+                self.tracksNB=int(output[2].split("tracks:")[1].split("Disc")[0].lstrip(' '))
+                self.name="CD : "+self.cdName
+                self.getAncestorMenu().askRefresh=True
+                self.output=output
+                self.parent.upToDate=True
+                self.parent.inDB=system.checkCDinDB(self.cdName,self.cdArtist)
+                print "found : " +str(self.parent.inDB)
+            except:
+                pass
+
+
 
     def onSelected(self):
         SubMenu.onSelected(self)
 
+        if not self.parent.upToDate :
+            self.actionTagTwo="  not ready yet"
+            return
 
-        if self.loaded==False:
-            output = system.startReturnCommand(" /usr/bin/cdcd tracks")
-            self.cdName = output[0].split("name:")[1].lstrip(' ')
-            self.cdArtist = output[1].split("artist:")[1].lstrip(' ')
-            self.tracksNB=int(output[2].split("tracks:")[1].split("Disc")[0].lstrip(' '))
+        if self.loaded==False :
+            output=self.output
             idec=6
             system.startCommand("mpc clear")
-            print output
-
+            self.tracks=[]
             for i in range(self.tracksNB):
                 self.tracks.append(output[idec+i].split("]")[1].lstrip(' '))
                 system.startCommand("mpc add cdda:///"+str(i+1))
             self.loaded=True
-            self.name="CD : "+self.cdName
             self.resetHelper()
 
         if self.play==False:
@@ -500,7 +702,6 @@ class CDPlayer(SubMenu):
         else:
             system.startCommand("mpc pause")
             self.mpcH.updateView()
-
 
         self.play = not self.play
 

@@ -1,7 +1,7 @@
 __author__ = 'mbrebion'
 
 
-from config import simple
+from config import simple,server,autoDisableWifiOnBt
 if simple:
     from simpleIO_mr import SimpleIo
     from simpleMenu import SimpleMenu
@@ -11,6 +11,7 @@ else:
 
 import system
 from libraries.constants import MSG_BUTTON,MSG_BACK,MSG_MENU,MSG_SELECT,MSG_VOL,MSG_PRINT,MSG_ORDER,MSG_REFRESH
+from libraries.constants import MODE_BTSTREAM,MODE_LOCAL,MODE_SNAPSTREAM,ORDER_SSTOP,ORDER_SSYNC
 from threading import Lock
 
 class Os(object):
@@ -18,16 +19,22 @@ class Os(object):
     def __init__(self):
 
         # constants
-        self.minVol=-48
+        self.minVol=-50
         self.maxVol=0
         self.volume=-15
-        self.wifiEnabled=True
+
         self.askedExit=False
         self.lastOrder=0
         self.lock=Lock()
+        self.cdInside=False
+        self.cdInDb=False
+
+        self.mode=MODE_LOCAL
+
 
 
         if simple:
+            # legacy mode for device with only one rotary button ; to bedeleted
             self.menu=SimpleMenu()
             self.io=SimpleIo(self)
 
@@ -40,7 +47,7 @@ class Os(object):
 
         system.startCommand("mpc clear") # clear last mpd playlist
         system.startCommand("mpc update")
-        if not simple :
+        if  server :
             system.switchToLocalOutput()
 
         #settings :
@@ -89,54 +96,50 @@ class Os(object):
         self.io.connectedToHost=False
 
     def askOrder(self,value):
-        if value==25:
+        if value==ORDER_SSYNC:
             self.menu.syncToSnapServer()
-        if value==26:
+        if value==ORDER_SSTOP:
             self.menu.stopSyncing()
 
     def askPrint(sel,value):
         print value
 
     def askButtonAction(self,value):
-        print value
+        if self.mode==MODE_LOCAL:
+            print value
 
-        if value==1 :
-            """
-            mpd content in every room
-            """
-            syncOrder=25
-            endSyncOrder=26
+            if value==1 :
+                """
+                mpd content in every room
+                """
 
-            if self.lastOrder!=syncOrder:
-                order=syncOrder
-                system.switchToSnapCastOutput()
-                self.menu.syncToSnapServer()
-                self.io.tcpServer.sendToAllDevices(MSG_ORDER+","+str(order));
-                self.lastOrder=order
+                if self.lastOrder != ORDER_SSYNC:
+                    system.switchToSnapCastOutput()
+                    system.startSnapClient()
+                    self.io.tcpServer.sendToAllDevices(MSG_ORDER+","+str(ORDER_SSYNC));
+                    self.lastOrder=ORDER_SSYNC
 
-            else :
-                order=endSyncOrder
-                self.io.tcpServer.sendToAllDevices(MSG_ORDER+","+str(order));
-                self.lastOrder=order
-                self.menu.stopSyncing()
-                system.switchToLocalOutput()
+                else :
+                    self.io.tcpServer.sendToAllDevices(MSG_ORDER+","+str(ORDER_SSTOP));
+                    self.lastOrder=ORDER_SSTOP
+                    system.stopSnapClient()
+                    system.switchToLocalOutput()
 
 
-        if value==2 :
-            if self.askedExit:
-                self.safeStop()
-            else:
-                self.io.writeText("Shutdown ? (Y-2,N-4)",4)
-                self.askedExit=True
+            if value==2 :
+                if self.askedExit:
+                    self.safeStop()
+                else:
+                    self.io.writeText("Shutdown ? (Y-2,N-4)",4)
+                    self.askedExit=True
 
 
-
-        if value==4 :
-            if self.askedExit==True:
-                self.askNewVolume(0)
-                self.askedExit=False
-            else :
-                self.io.resetScreen()
+            if value==4 :
+                if self.askedExit==True:
+                    self.askNewVolume(0)
+                    self.askedExit=False
+                else :
+                    self.io.resetScreen()
 
     def askRefresh(self,value):
         """
@@ -146,18 +149,28 @@ class Os(object):
         self.io.askResendTexts()
 
     def askScrollMenu(self,dec):
-        if dec>0:
-            self.menu.next(dec)
-        else :
-            self.menu.previous(dec)
+
+        if self.mode==MODE_LOCAL:
+            if dec>0:
+                self.menu.next(dec)
+            else :
+                self.menu.previous(dec)
+
         self.menu.askRefreshFromOutside()
 
     def askSelect(self,value):
         self.menu.select()
-        self.menu.askRefreshFromOutside()
+
+        if self.mode==MODE_LOCAL:
+            self.menu.askRefreshFromOutside()
 
     def askBack(self,value):
-        self.menu.back()
+        if self.mode==MODE_BTSTREAM:
+            system.killBluetoothStream()
+
+        if self.mode==MODE_LOCAL:
+            self.menu.back()
+
         self.menu.askRefreshFromOutside()
 
     def askNewVolume(self,dec):
@@ -165,12 +178,23 @@ class Os(object):
         :param dec:
         :return:
         """
+        "if current submenu is a setting menu ; this control is used to modify the property"
+        if self.menu.isSettingShown() and self.mode==MODE_LOCAL:
+            self.menu.currentSub.subMenuShown().update(dec)
+            return
+
         try :
             ndec = max(min(12,dec),-12)
             newVol = min(self.maxVol,max(self.minVol,self.volume +  ndec))
             self.io.writeText(" Vol : " +str( newVol)+"dB",4)
             self.volume=newVol
-            system.startCommand("amixer -c 0 -q -- set Digital "+str(newVol)+"dB")
+            if server :
+                system.startCommand("amixer -c 0 -q -- set Digital "+str(newVol)+"dB")
+            else :
+                # this hack is because hfiberry mini amp does not have a proper hardware mixer ; I would prefer a better and simpler solution !
+                system.startCommand("mpc volume "+str(100+2*newVol))
+                system.startCommand("amixer -- sset 'Master' "+ str(100+2*newVol)+"%")
+
         except:
             pass
 
@@ -178,13 +202,29 @@ class Os(object):
 ######## - ######
 
     def updateView(self):
-        menu,choice,choiceTwo = self.menu.info()
-        if menu!="":
-            self.io.writeText(menu,1)
-        if choice!="":
-            self.io.writeText(choice,2)
-        if choice!="":
-            self.io.writeText(choiceTwo,3)
+        """
+        outputs texts according to display state
+        :return:
+        """
+        if self.mode==MODE_BTSTREAM:
+            self.io.writeText("BT playing",1)
+            self.io.writeText("- back to stop -",2)
+            return
+
+        if self.mode==MODE_SNAPSTREAM:
+            self.io.writeText("SnapCast playing",1)
+            self.io.writeText("- back to stop -",2)
+            return
+
+        if self.mode==MODE_LOCAL:
+            menu,choice,choiceTwo = self.menu.info()
+            if menu!="":
+                self.io.writeText(menu,1)
+            if choice!="":
+                self.io.writeText(choice,2)
+            if choice!="":
+                self.io.writeText(choiceTwo,3)
+            return
 
     def safeStop(self):
         self.io.goOn=False
@@ -207,9 +247,47 @@ class Os(object):
         if self.menu.requireRefresh():
             self.updateView()
 
+    def dealWithBluetoothCon(self):
+        """
+        If autodiablewifionbt is set to True, ths os detects when music is streamed from bluetooth and can switch off wifi to ease signal reception.
+        In addiation, a text message is displayed (before wifi's off) to advert listeners
+        :return: nothing
+        """
+        if system.isBluetoothDevicePlaying():
+            if not self.mode==MODE_BTSTREAM:
+                self.menu.askRefreshFromOutside()
+                self.mode=MODE_BTSTREAM
+                self.io.askBacklight()
+                print "mode  : " + self.mode
+            if autoDisableWifiOnBt:
+                system.shutdownWifi()
+        else:
+            if self.mode==MODE_BTSTREAM:
+                self.menu.askRefreshFromOutside()
+                self.mode=MODE_LOCAL
+                self.io.askBacklight()
+                print "mode  : " + self.mode
+
+            if autoDisableWifiOnBt:
+                system.restartWifi()
 
 
 
 
 # start os !
 os=Os()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

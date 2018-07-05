@@ -10,21 +10,18 @@ class FaceButton(object):
         self.port=port
         GPIO.setup(port, GPIO.IN, pull_up_down = GPIO.PUD_UP)
         self.hasBeenSwitched=False
-        self.isSwitched=False
         self.id=id
 
-        GPIO.add_event_detect(self.port, GPIO.FALLING, callback=self.event,bouncetime=200)
+        GPIO.add_event_detect(self.port, GPIO.RISING, callback=self.eventRise,bouncetime=30)
 
 
-    def event(self,channel):
-        if GPIO.input(self.port)==False:
-            self.hasBeenSwitched=True
+    def eventRise(self,value):
+        self.hasBeenSwitched = True
+
 
 
     def getSwitch(self):
-        store=self.hasBeenSwitched
-        self.hasBeenSwitched=False
+        store = self.hasBeenSwitched
+        self.hasBeenSwitched = False
         return store
 
-    def isSwitched(self):
-        return GPIO.INPUT(self.port)

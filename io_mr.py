@@ -3,11 +3,14 @@ __author__ = 'mbrebion'
 from libraries.i2clcda import lcd_init,lcd_string,LCD_LINE_1,LCD_LINE_2,LCD_LINE_3,LCD_LINE_4
 from libraries.RotaryEncoder import RotaryEncoder
 from libraries.backlight import Backlight
-from libraries.faceButton import FaceButton
+from libraries.faceButtons import FaceButtons
 from time import sleep
-from libraries.tcpComm import serverThread
-from libraries.constants import MSG_SHUTDOWN,MSG_BUTTON,MSG_BACK,MSG_MENU,MSG_SELECT,MSG_VOL,MSG_WIFI
-from config import rotOne,rotTwo
+from libraries.tcpComm import serverThread,connectToHost,ClientThread
+from libraries.constants import MSG_BUTTON,MSG_BACK,MSG_MENU,MSG_SELECT,MSG_VOL
+from config import rotOne,rotTwo,server,lcdLines
+import datetime,pytz
+
+tz=pytz.timezone('Europe/Paris')
 
 class Io(object):
     """
@@ -25,16 +28,8 @@ class Io(object):
         self.clines=[False,False,False,False]
         self.physicalLines=[LCD_LINE_1,LCD_LINE_2,LCD_LINE_3,LCD_LINE_4]
         #
-        buttonPorts=[10,8,16,18]
-        buttonIds=[1,3,2,4]
-        self.faceButtons=[]
+        self.faceButtons=FaceButtons()
         self.resend=False
-        index=0
-        for port in buttonPorts:
-            self.faceButtons.append(FaceButton(port,buttonIds[index]))
-            index+=1
-
-
 
         # init screen
         try :
@@ -43,7 +38,18 @@ class Io(object):
             print "no lcd screen connected"
 
         # TCP comm
-        self.tcpServer=serverThread(os)
+        if server :
+            self.tcpServer=serverThread(os)
+        else :
+            self.cth()
+
+    def cth(self):
+        self.connectedToHost=False # set to true if connection is established with main hifi system
+        self.client=None
+        skt=connectToHost()
+        if skt!=False :
+            self.client=ClientThread("unknown", 0, skt,self.os)
+            self.connectedToHost=True
 
     def askBacklight(self):
         self.backlight.newCommand()
@@ -72,21 +78,43 @@ class Io(object):
 
             # back button status
             if self.volumeCtl.getSwitch():
-                self.os.takeAction(MSG_BACK,0)
+                self.os.takeAction(MSG_BACK, 0)
 
             # select button status
             if self.menuCtl.getSwitch():
-                self.os.takeAction(MSG_SELECT,0)
+                self.os.takeAction(MSG_SELECT, 0)
 
-            for faceButton in self.faceButtons:
-                if faceButton.getSwitch():
-                    self.os.takeAction(MSG_BUTTON,faceButton.id)
+            # front buttons
+            for id in self.faceButtons.getPressed():
+                self.os.takeAction(MSG_BUTTON,id)
 
-            # exit ?
-            if count%40 == 0 :
+            #alarms
+            now = datetime.datetime.now(tz=tz)
+            for alarm in self.os.menu.getActiveAlarms():
+                print alarm.name
+                if now.hour == alarm.hour and  now.minute >= alarm.minute and alarm.reseted:
+                    alarm.reseted=False
+                    print "Done !"
+                    self.os.menu.forceRadio()
+
+
+            if now.hour==0 and now.minute==0 :
+                for alarm in self.os.menu.getActiveAlarms():
+                    alarm.reseted=True # reset all alarms at midnight
+
+
+            # not very often
+            if count % 5 ==0 :
+                self.os.dealWithBluetoothCon()
+
+            # not often
+            if count % 40 == 0:
                 # this test is now done less often than before to prevent sd card corruption and overflow.
                 self.os.checkStopAsked()
-                count=1
+                if not server and not self.connectedToHost:
+                    self.cth()
+                count = 1
+
 
             # refresh view if any changes occurred
             self.os.refreshView()
@@ -108,10 +136,14 @@ class Io(object):
     def askResendTexts(self):
         self.resend=True
 
-    def writeText(self,text,line):
+    def writeText(self,text,line,delay=-1):
         """
         text is locally changed and display next time
+        negative delay means text stay forever ;
         """
+        if line==4 and text != "":
+            line=lcdLines
+
         id = line-1
         if self.lines[id] != text :
             self.lines[id] = text
@@ -122,14 +154,16 @@ class Io(object):
         text is truly output by this function, which can only be called by main thread
         """
         if self.resend:
-            for i in range(4):
+            for i in range(lcdLines):
                 self.clines[i]=True
             self.resend=False
 
-        for id in range(4):
+
+        for id in range(lcdLines):
             if self.clines[id]:
                 self.clines[id] = False
-                self.tcpServer.sendToAllRemotes(str(id+1)+";;"+self.lines[id])
+                if server :
+                    self.tcpServer.sendToAllRemotes(str(id+1)+";;"+self.lines[id])
                 try :
                     lcd_string(self.lines[id],self.physicalLines[id])
                 except :

@@ -59,7 +59,7 @@ class SimpleIo(object):
             # connect or reconnect to host :
             if self.connectedToHost==False and count %30 == 1:
                 self.cth()
-                cout=0
+                count=1
 
             count+=1
             sleep(0.25)
