@@ -10,5 +10,13 @@
 Les boutons menu et back semble être actionnés deux fois de temps en temps
 
 
-le bouton 3 ne marche plus (plus de fil !)
-le fil du bouton 4 est presque HS
+* Les reglages pour le wifi ne marchent pas ...
+* le bluetooth ne fonctionne plus nul part
+* la syncro ne marche pas très bien ( pas à chaque fois)
+premier clique : rien ne se passe
+deuxième clique: sa marche mais sans raison
+-> est-ce parcequ'il y a deux snapserver en cours (un sur chaque device ?)
+probably solved by starting snapserver only when requested on device sharing its audio content
+
+
+

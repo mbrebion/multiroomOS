@@ -9,9 +9,10 @@ __author__ = 'osoyoo'
 #
 import smbus
 import time
+from config import iTwoCAddr
 
 # Define some device parameters
-I2C_ADDR  = 0x27 # I2C device address, if any error, change this address to 0x3f
+I2C_ADDR  = iTwoCAddr # I2C device address, if any error, change this address to 0x3f
 LCD_WIDTH = 20   # Maximum characters per line
 
 # Define some device constants
@@ -43,11 +44,7 @@ E_DELAY = 0.0005
 
 #Open I2C interface
 #bus = smbus.SMBus(0)  # Rev 1 Pi uses 0
-bus=False
-try :
-  bus = smbus.SMBus(1) # Rev 2 Pi uses 1
-except :
-  print "problem with smbus in i2clcda "
+bus = smbus.SMBus(1) # Rev 2 Pi uses 1
 
 def lcd_init():
   # Initialise display

@@ -6,9 +6,10 @@ from libraries.backlight import Backlight
 from libraries.faceButtons import FaceButtons
 from time import sleep
 from libraries.tcpComm import serverThread,connectToHost,ClientThread
-from libraries.constants import MSG_BUTTON,MSG_BACK,MSG_MENU,MSG_SELECT,MSG_VOL
-from config import rotOne,rotTwo,server,lcdLines
+from libraries.constants import MSG_BUTTON,MSG_BACK,MSG_MENU,MSG_SELECT,MSG_VOL,MSG_PROPAGATE_ORDER
+from config import rotOne,rotTwo,server,lcdLines,entries
 import datetime,pytz
+from system import checkCDStatus
 
 tz=pytz.timezone('Europe/Paris')
 
@@ -51,8 +52,28 @@ class Io(object):
             self.client=ClientThread("unknown", 0, skt,self.os)
             self.connectedToHost=True
 
+    def sendMessageToAll(self,text):
+        if server:
+            self.tcpServer.sendToAllDevices(text)
+        else:
+            if self.connectedToHost:
+                self.client.send(MSG_PROPAGATE_ORDER+","+text)
+
     def askBacklight(self):
         self.backlight.newCommand()
+
+    def dealWithCD(self):
+        if "cd" not in entries:
+            return
+
+        out=checkCDStatus()
+        if out==False:
+            self.os.cdInside=False
+        else:
+            self.os.cdInside=True
+
+
+        self.os.menu.setCDInfos(out)
 
     def mainLoop(self):
         """
@@ -63,6 +84,7 @@ class Io(object):
         """
         self.goOn = True
         count = 0
+
 
         while self.goOn:
 
@@ -91,10 +113,8 @@ class Io(object):
             #alarms
             now = datetime.datetime.now(tz=tz)
             for alarm in self.os.menu.getActiveAlarms():
-                print alarm.name
                 if now.hour == alarm.hour and  now.minute >= alarm.minute and alarm.reseted:
                     alarm.reseted=False
-                    print "Done !"
                     self.os.menu.forceRadio()
 
 
@@ -104,13 +124,19 @@ class Io(object):
 
 
             # not very often
-            if count % 5 ==0 :
+            if count % 8 ==0 :
                 self.os.dealWithBluetoothCon()
+                if not self.os.cdInside:
+                    self.dealWithCD() # cd drive is checked more often after eject has been asked
 
             # not often
             if count % 40 == 0:
                 # this test is now done less often than before to prevent sd card corruption and overflow.
                 self.os.checkStopAsked()
+
+                if self.os.cdInside:
+                    self.dealWithCD()
+
                 if not server and not self.connectedToHost:
                     self.cth()
                 count = 1
@@ -121,13 +147,15 @@ class Io(object):
 
             self._writeText()
 
-            sleep(0.12)
+            sleep(0.1)
             count+=1
 
         # close tcp server
         self.tcpServer.shutDown()
         self.backlight.shutDown()
         self.askResendTexts()
+
+
 
     def resetScreen(self):
         lcd_init()

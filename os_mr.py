@@ -1,17 +1,12 @@
 __author__ = 'mbrebion'
 
 
-from config import simple,server,autoDisableWifiOnBt
-if simple:
-    from simpleIO_mr import SimpleIo
-    from simpleMenu import SimpleMenu
-else:
-    from io_mr import Io
-    from menu import Menu
-
+from config import server
+from io_mr import Io
+from menu import Menu
 import system
-from libraries.constants import MSG_BUTTON,MSG_BACK,MSG_MENU,MSG_SELECT,MSG_VOL,MSG_PRINT,MSG_ORDER,MSG_REFRESH
-from libraries.constants import MODE_BTSTREAM,MODE_LOCAL,MODE_SNAPSTREAM,ORDER_SSTOP,ORDER_SSYNC
+from libraries.constants import MSG_BUTTON,MSG_BACK,MSG_MENU,MSG_SELECT,MSG_VOL,MSG_PRINT,MSG_ORDER,MSG_REFRESH,MSG_PROPAGATE_ORDER
+from libraries.constants import MODE_BTSTREAM,MODE_LOCAL,MODE_SNAPSTREAM_IN,ORDER_SSTOP,ORDER_SSYNC,MODE_SNAPSTREAM_OUT
 from threading import Lock
 
 class Os(object):
@@ -27,36 +22,28 @@ class Os(object):
         self.lastOrder=0
         self.lock=Lock()
         self.cdInside=False
-        self.cdInDb=False
-
-        self.mode=MODE_LOCAL
 
 
-
-        if simple:
-            # legacy mode for device with only one rotary button ; to bedeleted
-            self.menu=SimpleMenu()
-            self.io=SimpleIo(self)
-
-        else:
-            self.menu=Menu()
-            self.io=Io(self)
-
-        self.askNewVolume(-1)
-        # never ending loop
-
-        system.startCommand("mpc clear") # clear last mpd playlist
-        system.startCommand("mpc update")
-        if  server :
-            system.switchToLocalOutput()
 
         #settings :
         system.openShelf()
 
-        self.io.mainLoop() # main os thread
 
-        if simple==False:
-            Menu.clearProcesses()
+        self.menu=Menu(self)
+        self.io=Io(self)
+
+        #self.askNewVolume(-1)
+        self.changeMode(MODE_LOCAL)
+        # never ending loop
+
+        system.startCommand("mpc clear") # clear last mpd playlist
+        system.startCommand("mpc update")
+        system.switchToLocalOutput()
+
+
+        self.io.mainLoop() # main os thread
+        system.closeShelf()
+
 
     def takeAction(self,message,value):
         """
@@ -92,21 +79,35 @@ class Os(object):
             if message==MSG_REFRESH:
                 self.askRefresh(value)
 
+            if message==MSG_PROPAGATE_ORDER:
+                self.propagateOrder(value)
+
+
     def connectionLost(self):
         self.io.connectedToHost=False
 
+
     def askOrder(self,value):
         if value==ORDER_SSYNC:
-            self.menu.syncToSnapServer()
+            if server:
+                system.startSnapClient()
+            else:
+                system.startSnapClientSimple()
+
+            self.changeMode(MODE_SNAPSTREAM_IN)
+
+
         if value==ORDER_SSTOP:
-            self.menu.stopSyncing()
+            system.stopSnapClient()
+            self.changeMode(MODE_LOCAL)
+
+
 
     def askPrint(sel,value):
         print value
 
     def askButtonAction(self,value):
-        if self.mode==MODE_LOCAL:
-            print value
+        if self.mode==MODE_LOCAL or MODE_SNAPSTREAM_OUT:
 
             if value==1 :
                 """
@@ -114,14 +115,19 @@ class Os(object):
                 """
 
                 if self.lastOrder != ORDER_SSYNC:
+                    print "start syncing"
                     system.switchToSnapCastOutput()
+                    self.changeMode(MODE_SNAPSTREAM_OUT)
+
                     system.startSnapClient()
-                    self.io.tcpServer.sendToAllDevices(MSG_ORDER+","+str(ORDER_SSYNC));
+                    self.io.sendMessageToAll(MSG_ORDER+","+str(ORDER_SSYNC));
                     self.lastOrder=ORDER_SSYNC
 
                 else :
-                    self.io.tcpServer.sendToAllDevices(MSG_ORDER+","+str(ORDER_SSTOP));
+                    print "stop syncing"
+                    self.io.sendMessageToAll(MSG_ORDER+","+str(ORDER_SSTOP));
                     self.lastOrder=ORDER_SSTOP
+                    self.changeMode(MODE_LOCAL)
                     system.stopSnapClient()
                     system.switchToLocalOutput()
 
@@ -136,7 +142,7 @@ class Os(object):
 
             if value==4 :
                 if self.askedExit==True:
-                    self.askNewVolume(0)
+                    self.menu.askRefreshFromOutside()
                     self.askedExit=False
                 else :
                     self.io.resetScreen()
@@ -150,7 +156,7 @@ class Os(object):
 
     def askScrollMenu(self,dec):
 
-        if self.mode==MODE_LOCAL:
+        if self.mode==MODE_LOCAL or MODE_SNAPSTREAM_OUT:
             if dec>0:
                 self.menu.next(dec)
             else :
@@ -161,15 +167,22 @@ class Os(object):
     def askSelect(self,value):
         self.menu.select()
 
-        if self.mode==MODE_LOCAL:
+        if self.mode==MODE_LOCAL or MODE_SNAPSTREAM_OUT:
             self.menu.askRefreshFromOutside()
 
     def askBack(self,value):
+
         if self.mode==MODE_BTSTREAM:
             system.killBluetoothStream()
 
-        if self.mode==MODE_LOCAL:
+        if self.mode==MODE_LOCAL or MODE_SNAPSTREAM_OUT:
             self.menu.back()
+
+        if self.mode==MODE_SNAPSTREAM_IN:
+            system.stopSnapClient()
+            self.mode=MODE_LOCAL # must be done automatically as it is the case for bt ; we can check for the existence of a snapclient alive for instance
+            #TODO : we must advertize the device which broadcast so that if there is no more listener, it can stop broadcasting
+
 
         self.menu.askRefreshFromOutside()
 
@@ -188,6 +201,7 @@ class Os(object):
             newVol = min(self.maxVol,max(self.minVol,self.volume +  ndec))
             self.io.writeText(" Vol : " +str( newVol)+"dB",4)
             self.volume=newVol
+
             if server :
                 system.startCommand("amixer -c 0 -q -- set Digital "+str(newVol)+"dB")
             else :
@@ -211,15 +225,18 @@ class Os(object):
             self.io.writeText("- back to stop -",2)
             return
 
-        if self.mode==MODE_SNAPSTREAM:
+        if self.mode==MODE_SNAPSTREAM_IN:
             self.io.writeText("SnapCast playing",1)
             self.io.writeText("- back to stop -",2)
             return
 
-        if self.mode==MODE_LOCAL:
+        if self.mode==MODE_LOCAL or self.mode==MODE_SNAPSTREAM_OUT:
             menu,choice,choiceTwo = self.menu.info()
             if menu!="":
-                self.io.writeText(menu,1)
+                if self.mode==MODE_SNAPSTREAM_OUT:
+                    self.io.writeText("* "+menu,1)
+                else:
+                    self.io.writeText(menu,1)
             if choice!="":
                 self.io.writeText(choice,2)
             if choice!="":
@@ -247,34 +264,46 @@ class Os(object):
         if self.menu.requireRefresh():
             self.updateView()
 
+
+    def changeMode(self, newMode):
+        self.mode=newMode
+        self.menu.askRefreshFromOutside()
+        self.io.askBacklight()
+
+
+
     def dealWithBluetoothCon(self):
         """
-        If autodiablewifionbt is set to True, ths os detects when music is streamed from bluetooth and can switch off wifi to ease signal reception.
+        If autodisablewifionbt is set to True, ths os detects when music is streamed from bluetooth and can switch off wifi to ease signal reception.
         In addiation, a text message is displayed (before wifi's off) to advert listeners
         :return: nothing
         """
         if system.isBluetoothDevicePlaying():
             if not self.mode==MODE_BTSTREAM:
                 self.menu.askRefreshFromOutside()
-                self.mode=MODE_BTSTREAM
-                self.io.askBacklight()
-                print "mode  : " + self.mode
-            if autoDisableWifiOnBt:
-                system.shutdownWifi()
+                self.changeMode(MODE_BTSTREAM)
+            try:
+                if system.getDataFromShelf("WifiAuto"):
+                    pass
+                    system.shutdownWifi()
+            except:
+                pass
         else:
             if self.mode==MODE_BTSTREAM:
                 self.menu.askRefreshFromOutside()
-                self.mode=MODE_LOCAL
-                self.io.askBacklight()
-                print "mode  : " + self.mode
+                self.changeMode(MODE_LOCAL)
 
-            if autoDisableWifiOnBt:
-                system.restartWifi()
-
+            try :
+                if system.getDataFromShelf("WifiAuto"):
+                    pass
+                    system.restartWifi()
+            except:
+                pass
 
 
 
 # start os !
+global os
 os=Os()
 
 

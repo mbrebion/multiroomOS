@@ -13,13 +13,26 @@ def startCommand(command,output=False):
     osys.system(cmd)
 
 
+def checkCDStatus():
+    try:
+        output = startReturnCommand(" /usr/bin/cdcd tracks")
+        cdName = output[0].split("name:")[1].lstrip(' ')
+        cdArtist = output[1].split("artist:")[1].lstrip(' ')
+        tracksNB=int(output[2].split("tracks:")[1].split("Disc")[0].lstrip(' '))
+        tracks=[]
+        idec=6
+        for i in range(tracksNB):
+            tracks.append(output[idec+i].split("]")[1].lstrip(' '))
+
+        inDB=checkCDinDB(cdName,cdArtist)
+        return [cdName,cdArtist,tracks,inDB]
+    except:
+        return False
 
 
 def checkCDinDB(album,artist):
     cmd=" mpc search Album \""+ album+"\" artist  \"" +artist+"\" "
-    print cmd
     output = startReturnCommand(cmd)
-    return len(output)!=0
 
 
 def isBluetoothDevicePlaying():
@@ -43,7 +56,9 @@ wifiStatus=True
 def shutdownWifi():
     global wifiStatus
     if wifiStatus:
+        print "wifi down !"
         startCommand("sudo ifconfig wlan0 down")
+
         wifiStatus=False
 
 def restartWifi():
@@ -66,6 +81,7 @@ def openShelf():
     global shelf
     shelf = shelve.open("/home/pi/os/settings.shelf",writeback=True)
 
+
 def getDataFromShelf(key):
     global shelf
     return shelf[key]
@@ -83,46 +99,73 @@ def closeShelf():
 # dealing with snapcast
 # these commands are usefull for server as well as clients
 
-# server side
+subPSServer = False
+def startSnapServer():
+    """
+    use raw output
+    :return:
+    """
+    global subPSServer
+    if subPSServer != False:
+        stopSnapServer()
+
+    FNULL = open(osys.devnull, 'w')
+    subPSServer=subprocess.Popen(['/usr/bin/snapserver'],stdout=FNULL, stderr=subprocess.STDOUT)
+    print "     snapserver created"
+
+
+def stopSnapServer():
+    global subPSServer
+    if subPSServer != False:
+        subPSServer.kill()
+        subPSServer=False
+        print "     snapserver killed"
+
+
 def switchToSnapCastOutput():
+    startSnapServer()
     startCommand("mpc enable 1")
     startCommand("mpc disable 2")
-    startCommand("mpc volume 70")
 
 
 def switchToLocalOutput():
-
+    stopSnapServer()
     startCommand("mpc enable 2")
     startCommand("mpc disable 1")
-    startCommand("mpc volume 70")
 
 
-subP = False
-
+subPSClient = False
 def startSnapClientSimple():
     """
     use pulse output (needed for volume control relying on hifiberry mini amp)
     :return:
     """
-    global subP
+    global subPSClient
+    if subPSClient != False:
+        stopSnapClient()
     FNULL = open(osys.devnull, 'w')
-    subP=subprocess.Popen(['/usr/bin/snapclient', '-s 2 '],stdout=FNULL, stderr=subprocess.STDOUT)
+    subPSClient=subprocess.Popen(['/usr/bin/snapclient', '-s 2 '],stdout=FNULL, stderr=subprocess.STDOUT)
+    print "     snapclient simple created"
 
 def startSnapClient():
     """
     use raw output
     :return:
     """
-    global subP
+    global subPSClient
+    if subPSClient != False:
+        stopSnapClient()
+
     FNULL = open(osys.devnull, 'w')
-    subP=subprocess.Popen(['/usr/bin/snapclient', '-s 6 '],stdout=FNULL, stderr=subprocess.STDOUT)
+    subPSClient=subprocess.Popen(['/usr/bin/snapclient', '-s 6 '],stdout=FNULL, stderr=subprocess.STDOUT)
+    print "     snapclient created"
 
 
 def stopSnapClient():
-    global subP
-    if subP != False:
-        subP.kill()
-        subP=False
+    global subPSClient
+    if subPSClient != False:
+        subPSClient.kill()
+        subPSClient=False
         print "     snapclient killed"
 
 

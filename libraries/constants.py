@@ -12,12 +12,13 @@ MSG_BUTTON="button"
 MSG_PRINT="print"
 MSG_ORDER="order"
 MSG_REFRESH="refresh"
-
+MSG_PROPAGATE_ORDER="propagate"
 
 
 MODE_LOCAL="local"
 MODE_BTSTREAM="btStream"
-MODE_SNAPSTREAM="snapStream"
+MODE_SNAPSTREAM_IN="snapStreamIn"
+MODE_SNAPSTREAM_OUT="snapStreamOut"
 
 
 CLIENT_REMOTE="remoteControl"

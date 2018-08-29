@@ -5,6 +5,7 @@ import socket
 from time import sleep
 import threading
 from config import host,hortPort
+from libraries.constants import MSG_PROPAGATE_ORDER,MSG_ORDER
 
 from libraries.constants import CLIENT_DEVICE,CLIENT_REMOTE,CLIENT_MAIN
 
@@ -73,14 +74,22 @@ class ClientThread(threading.Thread):
                     raise socket.timeout
 
                 if msg != False:
-                    self.os.takeAction(msg[0],int(msg[1]))
+                    if msg[0]==MSG_PROPAGATE_ORDER:
+                        # in this case, the order is treated and propagated to other devices
+                        self.os.takeAction(msg[1],int(msg[2]))
+                        self.os.io.tcpServer.propagateMessage(msg[1]+","+msg[2],self)
+                    else:
+                        self.os.takeAction(msg[0],int(msg[1]))
                 sleep(0.02)
 
 
             except socket.timeout:
                 pass
             except ValueError:
-                print "too much messages received. please slow down"
+                print "too much messages received. please slow down : "
+                print msg
+            except :
+                print "unknown error with tcp"
 
         if self.kind==CLIENT_MAIN:
             self.os.connectionLost()
@@ -115,6 +124,22 @@ class serverThread(threading.Thread):
                 except :
                     print "error in send to client device"
                     client.alive=False
+
+    def propagateMessage(self,text,source):
+        # send msg to all devices included this one, except to the one who sent the message
+        print "propagate function   :   ", text
+        self.checkAliveClients()
+
+        for client in self.clients:
+            if client.kind == CLIENT_DEVICE and client != source:
+                try:
+                    client.send(text)
+                except :
+                    print "error in send to client device"
+                    client.alive=False
+
+
+
 
     def sendToAllRemotes(self,text):
         # send msg to all client connected
