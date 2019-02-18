@@ -83,8 +83,10 @@ class SubMenu(object):
 
     def _select(self):
         if self.explorable() :
-            self.list[self.count].onSelected()
-            return self.list[self.count]
+            if self.list[self.count].onSelected() != False:
+                return self.list[self.count]
+            else :
+                return False
         else:
             self.onSelected()
             return False
@@ -97,6 +99,7 @@ class SubMenu(object):
 
     def addEntry(self,sub):
         self.list.append(sub)
+
 
 class SubSetting(SubMenu):
     """
@@ -173,7 +176,6 @@ class Menu(SubMenu):
     def setCDInfos(self,items):
         if "cd" not in entries:
             return
-        print "cd infos : " , items
         if items==False:
             self.cd.title=""
             self.cd.artist=""
@@ -197,7 +199,7 @@ class Menu(SubMenu):
             self.addEntry(self.radio)
 
         if "localMusic" in entries :
-            self.addEntry(Music(self))
+            self.addEntry(Artists(self))
 
         if "alarm" in entries :
             self.alarm=Alarm(self)
@@ -279,7 +281,9 @@ class Menu(SubMenu):
         this force the radio menu : usefull for alarms
         :return: nothing
         """
+
         if "radios" in entries :
+            self.back()
             self.currentSub=self.radio
             self.radio.list[0].onShowed()
             self.getAncestorMenu().askRefreshFromOutside()
@@ -301,7 +305,6 @@ class Alarm(SubMenu):
     def __init__(self,parent,name="Reveil"):
         SubMenu.__init__(self,parent,name)
         self.items=[]
-        self.populate()
 
     def getActiveAlarms(self):
         out=[]
@@ -320,8 +323,13 @@ class Alarm(SubMenu):
     def populate(self):
         self.clearEntries()
         for item in self.items :
+            item.toDelete=False
             self.addEntry(item)
+
         self.addEntry(NewAlarm(self))
+
+    def onShowed(self):
+        self.populate()
 
 class NewAlarm(SubMenu):
     def __init__(self,parent,name="ajout Reveil"):
@@ -330,22 +338,14 @@ class NewAlarm(SubMenu):
         self.tm=TimeMinute(self)
         self.addEntry(self.th)
         self.addEntry(self.tm)
-        self.addEntry(CreateAlarm(self))
 
     def _back(self):
+        item = AlarmItem(self.parent, self.th.property, self.tm.property)
+        self.parent.addItem(item)
         self.parent.populate()
         return SubMenu._back(self)
 
-class CreateAlarm(SubMenu):
-    def __init__(self,parent,name="Ajouter"):
-        SubMenu.__init__(self,parent,name)
-        self.actionTag="Ajoutee"
 
-
-    def onSelected(self):
-        SubMenu.onSelected(self)
-        item=AlarmItem(self.parent.parent,self.parent.th.property,self.parent.tm.property)
-        self.parent.parent.addItem(item)
 
 
 class TimeHour(SubSetting):
@@ -386,27 +386,41 @@ class TimeMinute(SubSetting):
             nh=59
         self.property=nh
 
-class AlarmItem(SubMenu):
-    def __init__(self,parent,hour,minute,name="heure : "):
-        SubMenu.__init__(self,parent,name)
+
+class AlarmItem(SubSetting):
+    def __init__(self,parent,hour,minute,name="a"):
+        self.enable = True
         self.hour=hour
         self.minute=minute
-        self.enable=True
         self.reseted=True
-        self.updateName()
+        self.toDelete=False
 
-    def updateName(self):
+        SubSetting.__init__(self,parent,name,"",0,False)
+
+
+    def _showProperty(self):
         if self.enable:
-            oute="oui"
+            out="oui"
         else :
-            oute="non"
-        self.name = "a : " + str(self.hour)+":"+str(self.minute)+" " + oute
+            out="non"
+        return   str(self.hour).zfill(2)+":"+str(self.minute).zfill(2)+" " + out
 
+    def _modifyProperty(self, dec):
+        if dec !=0:
+            self.enable = not self.enable
 
     def onSelected(self):
-        self.enable != self.enable
-        self.onShowed()
-        self.getAncestorMenu().askRefreshFromOutside()
+        if not self.toDelete :
+            self.name="supprimer ?"
+            self.getAncestorMenu().askRefreshFromOutside()
+            self.toDelete=True
+        else:
+            self.parent.removeItem(self)
+            self.parent.populate()
+            self.getAncestorMenu().askRefreshFromOutside()
+        return False
+
+
 
 
 
@@ -414,12 +428,6 @@ class AlarmItem(SubMenu):
 ######### Local music menus   #########
 #######################################
 
-
-class Music(SubMenu):
-    def __init__(self,parent,name="Local music"):
-        SubMenu.__init__(self,parent,name)
-        self.addEntry(Artists(self))
-        self.addEntry(PlayList(self))
 
 
 class Artists(SubMenu):
@@ -537,11 +545,6 @@ class Album(SubMenu):
         self.parent.actionTagTwo = "  -- [" + str(self.parent.count+1)+"/"+str(len(self.parent.list)) +"] --"
 
 
-class PlayList(SubMenu):
-    def __init__(self,parent,name="Playlists"):
-        SubMenu.__init__(self,parent,name)
-        self.parent=parent
-
 
 #######################################
 #########     Radios menus    #########
@@ -602,9 +605,9 @@ class MagicMode(SubSetting):
 
     def _showProperty(self):
         if self.property:
-            return "v"
+            return "-on-"
         else :
-            return "x"
+            return "-off-"
 
     def _modifyProperty(self,dec):
         if dec != 0:
@@ -623,7 +626,7 @@ class MPDVolume(SubSetting):
 
 
 class SettingsWL(SubMenu):
-    def __init__(self,parent,name="Reglages Wireless"):
+    def __init__(self,parent,name="Reg. Wireless"):
         SubMenu.__init__(self,parent,name)
         self.addEntry(WifiOn(self))
         self.addEntry(WifiAuto(self))
@@ -634,9 +637,9 @@ class WifiOn(SubSetting):
 
     def _showProperty(self):
         if self.property:
-            return " - on - "
+            return "-on-"
         else :
-            return " - off - "
+            return "-off-"
 
     def _modifyProperty(self,dec):
 
@@ -649,14 +652,14 @@ class WifiOn(SubSetting):
             system.shutdownWifi()
 
 class WifiAuto(SubSetting):
-    def __init__(self,parent,name="WifiAuto", hint="Wifi while Bt"):
+    def __init__(self,parent,name="WifiAuto", hint="Bt -> no Wifi"):
         SubSetting.__init__(self,parent,name,hint,True,True)
 
     def _showProperty(self):
         if self.property:
-            return " - on - "
+            return "-on-"
         else :
-            return " - off - "
+            return "-off-"
 
     def _modifyProperty(self,dec):
         if dec != 0:
@@ -712,7 +715,7 @@ class Rip(SubMenu):
     def onSelected(self):
         if self.state=="":
             self.state="on duty"
-            system.startCommand(" abcde -N & ")
+            system.startCommand(" sudo abcde -N & ") # works with sudo ? to be tested
         else:
             self.state=""
             system.startCommand(" pkill abcde ; pkill cdpara ")

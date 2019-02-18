@@ -27,5 +27,6 @@ CLIENT_MAIN="mainPlayer"
 
 
 
-ORDER_SSYNC=25
-ORDER_SSTOP=26
+ORDER_SSYNC=25 # start syncing
+ORDER_SSTOP=26 # stop syncing
+ORDER_STOP=27 # stop music on device

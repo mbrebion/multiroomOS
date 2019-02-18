@@ -6,7 +6,7 @@ from io_mr import Io
 from menu import Menu
 import system
 from libraries.constants import MSG_BUTTON,MSG_BACK,MSG_MENU,MSG_SELECT,MSG_VOL,MSG_PRINT,MSG_ORDER,MSG_REFRESH,MSG_PROPAGATE_ORDER
-from libraries.constants import MODE_BTSTREAM,MODE_LOCAL,MODE_SNAPSTREAM_IN,ORDER_SSTOP,ORDER_SSYNC,MODE_SNAPSTREAM_OUT
+from libraries.constants import MODE_BTSTREAM,MODE_LOCAL,MODE_SNAPSTREAM_IN,ORDER_SSTOP,ORDER_STOP,ORDER_SSYNC,MODE_SNAPSTREAM_OUT
 from threading import Lock
 
 class Os(object):
@@ -83,6 +83,7 @@ class Os(object):
                 self.propagateOrder(value)
 
 
+
     def connectionLost(self):
         self.io.connectedToHost=False
 
@@ -95,11 +96,17 @@ class Os(object):
                 system.startSnapClientSimple()
 
             self.changeMode(MODE_SNAPSTREAM_IN)
+            return
 
 
         if value==ORDER_SSTOP:
             system.stopSnapClient()
             self.changeMode(MODE_LOCAL)
+            return
+
+        if value == ORDER_STOP:
+            self.askBack(1)
+            self.askOrder(ORDER_SSTOP)
 
 
 
@@ -133,19 +140,16 @@ class Os(object):
 
 
             if value==2 :
-                if self.askedExit:
-                    self.safeStop()
-                else:
-                    self.io.writeText("Shutdown ? (Y-2,N-4)",4)
-                    self.askedExit=True
+                # clear other devices
+                self.io.sendMessageToAll(MSG_ORDER + "," + str(ORDER_STOP));
 
+            if value==3 :
+                self.menu.forceRadio()
 
             if value==4 :
-                if self.askedExit==True:
-                    self.menu.askRefreshFromOutside()
-                    self.askedExit=False
-                else :
-                    self.io.resetScreen()
+                pass
+
+
 
     def askRefresh(self,value):
         """
@@ -205,7 +209,7 @@ class Os(object):
             if server :
                 system.startCommand("amixer -c 0 -q -- set Digital "+str(newVol)+"dB")
             else :
-                # this hack is because hfiberry mini amp does not have a proper hardware mixer ; I would prefer a better and simpler solution !
+                # this hack is because hifiberry mini amp does not have a proper hardware mixer ; I would prefer a better and simpler solution !
                 system.startCommand("mpc volume "+str(100+2*newVol))
                 system.startCommand("amixer -- sset 'Master' "+ str(100+2*newVol)+"%")
 
@@ -220,6 +224,7 @@ class Os(object):
         outputs texts according to display state
         :return:
         """
+
         if self.mode==MODE_BTSTREAM:
             self.io.writeText("BT playing",1)
             self.io.writeText("- back to stop -",2)
@@ -232,6 +237,7 @@ class Os(object):
 
         if self.mode==MODE_LOCAL or self.mode==MODE_SNAPSTREAM_OUT:
             menu,choice,choiceTwo = self.menu.info()
+
             if menu!="":
                 if self.mode==MODE_SNAPSTREAM_OUT:
                     self.io.writeText("* "+menu,1)
@@ -282,23 +288,20 @@ class Os(object):
             if not self.mode==MODE_BTSTREAM:
                 self.menu.askRefreshFromOutside()
                 self.changeMode(MODE_BTSTREAM)
-            try:
-                if system.getDataFromShelf("WifiAuto"):
+                try:
+                    if system.getDataFromShelf("WifiAuto"):
+                        system.shutdownWifi()
+                except:
                     pass
-                    system.shutdownWifi()
-            except:
-                pass
         else:
             if self.mode==MODE_BTSTREAM:
                 self.menu.askRefreshFromOutside()
                 self.changeMode(MODE_LOCAL)
-
-            try :
-                if system.getDataFromShelf("WifiAuto"):
+                try :
+                    if system.getDataFromShelf("WifiAuto"):
+                        system.restartWifi()
+                except:
                     pass
-                    system.restartWifi()
-            except:
-                pass
 
 
 

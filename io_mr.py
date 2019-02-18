@@ -59,6 +59,8 @@ class Io(object):
             if self.connectedToHost:
                 self.client.send(MSG_PROPAGATE_ORDER+","+text)
 
+
+
     def askBacklight(self):
         self.backlight.newCommand()
 
@@ -92,23 +94,28 @@ class Io(object):
             dec=self.volumeCtl.getDec()
             if dec!=0 :
                 self.os.takeAction(MSG_VOL, dec)
+                count = 1
 
             # change menu
             dec=self.menuCtl.getDec()
             if dec!=0 :
                 self.os.takeAction(MSG_MENU, dec)
+                count = 1
 
             # back button status
             if self.volumeCtl.getSwitch():
                 self.os.takeAction(MSG_BACK, 0)
+                count = 1
 
             # select button status
             if self.menuCtl.getSwitch():
                 self.os.takeAction(MSG_SELECT, 0)
+                count = 1
 
             # front buttons
             for id in self.faceButtons.getPressed():
                 self.os.takeAction(MSG_BUTTON,id)
+                count = 1
 
             #alarms
             now = datetime.datetime.now(tz=tz)
@@ -122,24 +129,22 @@ class Io(object):
                 for alarm in self.os.menu.getActiveAlarms():
                     alarm.reseted=True # reset all alarms at midnight
 
-
             # not very often
-            if count % 8 ==0 :
-                self.os.dealWithBluetoothCon()
-                if not self.os.cdInside:
-                    self.dealWithCD() # cd drive is checked more often after eject has been asked
+            if count % 160 == 0:
+                self.os.checkStopAsked()
+                if not server and not self.connectedToHost:
+                    self.cth()
+                count = 1
 
             # not often
-            if count % 40 == 0:
+            if count % 50 == 0:
                 # this test is now done less often than before to prevent sd card corruption and overflow.
-                self.os.checkStopAsked()
+
+                self.os.dealWithBluetoothCon()
 
                 if self.os.cdInside:
                     self.dealWithCD()
 
-                if not server and not self.connectedToHost:
-                    self.cth()
-                count = 1
 
 
             # refresh view if any changes occurred
@@ -147,7 +152,7 @@ class Io(object):
 
             self._writeText()
 
-            sleep(0.1)
+            sleep(0.06)
             count+=1
 
         # close tcp server
@@ -177,6 +182,7 @@ class Io(object):
             self.lines[id] = text
             self.clines[id] = True
 
+
     def _writeText(self):
         """
         text is truly output by this function, which can only be called by main thread
@@ -190,9 +196,9 @@ class Io(object):
         for id in range(lcdLines):
             if self.clines[id]:
                 self.clines[id] = False
-                if server :
-                    self.tcpServer.sendToAllRemotes(str(id+1)+";;"+self.lines[id])
                 try :
                     lcd_string(self.lines[id],self.physicalLines[id])
                 except :
                     pass
+                if server :
+                    self.tcpServer.sendToAllRemotes(str(id+1)+";;"+self.lines[id])
