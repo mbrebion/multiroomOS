@@ -40,9 +40,9 @@ class RotaryEncoder(object):
         self.current=[GPIO.input(self.clk),GPIO.input(self.dt),0] # current state
 
         # add callback event
-        GPIO.add_event_detect(self.clk, GPIO.BOTH, callback=self.rotaryCallState,bouncetime=1)
-        GPIO.add_event_detect(self.dt, GPIO.BOTH, callback=self.rotaryCallState,bouncetime=1)
-        GPIO.add_event_detect(self.switch, GPIO.BOTH, callback=self.switchCall,bouncetime=200)
+        GPIO.add_event_detect(self.clk, GPIO.BOTH, callback=self.rotaryCallState) # bouncing has been removed and it seems to work well
+        GPIO.add_event_detect(self.dt, GPIO.BOTH, callback=self.rotaryCallState)
+        GPIO.add_event_detect(self.switch, GPIO.BOTH, callback=self.switchCall,bouncetime=100)
 
         # a test on the rotary showed that bouncetime did not exceded 10 \mu s
         # a value of 1ms is therefore safe

@@ -22,5 +22,4 @@ class FaceButtons(object):
         for faceButton in self.buttons:
             if faceButton.getSwitch():
                 values.append(faceButton.id)
-                print "boutton : " ,faceButton.id
         return values

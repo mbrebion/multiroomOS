@@ -36,7 +36,7 @@ class Io(object):
         try :
             lcd_init()
         except IOError:
-            print "no lcd screen connected"
+            print("no lcd screen connected")
 
         # TCP comm
         if server :
@@ -135,15 +135,13 @@ class Io(object):
                 if not server and not self.connectedToHost:
                     self.cth()
                 count = 1
+                self.dealWithCD()
+
 
             # not often
             if count % 50 == 0:
                 # this test is now done less often than before to prevent sd card corruption and overflow.
-
                 self.os.dealWithBluetoothCon()
-
-                if self.os.cdInside:
-                    self.dealWithCD()
 
 
 

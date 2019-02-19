@@ -8,6 +8,7 @@ import system
 from libraries.constants import MSG_BUTTON,MSG_BACK,MSG_MENU,MSG_SELECT,MSG_VOL,MSG_PRINT,MSG_ORDER,MSG_REFRESH,MSG_PROPAGATE_ORDER
 from libraries.constants import MODE_BTSTREAM,MODE_LOCAL,MODE_SNAPSTREAM_IN,ORDER_SSTOP,ORDER_STOP,ORDER_SSYNC,MODE_SNAPSTREAM_OUT
 from threading import Lock
+from uuid import getnode as get_mac
 
 class Os(object):
 
@@ -22,7 +23,9 @@ class Os(object):
         self.lastOrder=0
         self.lock=Lock()
         self.cdInside=False
-
+        mac = get_mac()
+        self.macAdrr=':'.join(("%012x" % mac)[i:i+2] for i in range(0, 12, 2))
+        print(self.macAdrr)
 
 
         #settings :
@@ -111,7 +114,7 @@ class Os(object):
 
 
     def askPrint(sel,value):
-        print value
+        print(value)
 
     def askButtonAction(self,value):
         if self.mode==MODE_LOCAL or MODE_SNAPSTREAM_OUT:
@@ -122,7 +125,6 @@ class Os(object):
                 """
 
                 if self.lastOrder != ORDER_SSYNC:
-                    print "start syncing"
                     system.switchToSnapCastOutput()
                     self.changeMode(MODE_SNAPSTREAM_OUT)
 
@@ -131,7 +133,6 @@ class Os(object):
                     self.lastOrder=ORDER_SSYNC
 
                 else :
-                    print "stop syncing"
                     self.io.sendMessageToAll(MSG_ORDER+","+str(ORDER_SSTOP));
                     self.lastOrder=ORDER_SSTOP
                     self.changeMode(MODE_LOCAL)
@@ -186,7 +187,7 @@ class Os(object):
             system.stopSnapClient()
             self.mode=MODE_LOCAL # must be done automatically as it is the case for bt ; we can check for the existence of a snapclient alive for instance
             #TODO : we must advertize the device which broadcast so that if there is no more listener, it can stop broadcasting
-
+            # to be done with json rpc messages (via telnet scripts maybe)
 
         self.menu.askRefreshFromOutside()
 
@@ -200,21 +201,21 @@ class Os(object):
             self.menu.currentSub.subMenuShown().update(dec)
             return
 
-        try :
-            ndec = max(min(12,dec),-12)
-            newVol = min(self.maxVol,max(self.minVol,self.volume +  ndec))
-            self.io.writeText(" Vol : " +str( newVol)+"dB",4)
-            self.volume=newVol
+        ndec = max(min(12,dec),-12)
+        newVol = min(self.maxVol,max(self.minVol,self.volume +  ndec))
+        self.io.writeText(" Vol : " +str( newVol)+"dB",4)
+        self.volume=newVol
 
-            if server :
-                system.startCommand("amixer -c 0 -q -- set Digital "+str(newVol)+"dB")
-            else :
-                # this hack is because hifiberry mini amp does not have a proper hardware mixer ; I would prefer a better and simpler solution !
-                system.startCommand("mpc volume "+str(100+2*newVol))
-                system.startCommand("amixer -- sset 'Master' "+ str(100+2*newVol)+"%")
+        if server :
+            system.startCommand("amixer -c 0 -q -- set Digital "+str(newVol)+"dB")
+        else :
+            # this hack is because hifiberry mini amp does not have a proper hardware mixer ; I would prefer a better and simpler solution !
+            if self.mode == MODE_SNAPSTREAM_IN or self.mode == MODE_SNAPSTREAM_OUT:
+                system.startCommand("mpc volume 70" ) # default volume : to be changed
+                system.startCommand("bash /home/pi/os/scripts/setSnapVolume.sh "+self.macAdrr+" "+str(100 + 2 * newVol))
+            else:
+                system.startCommand("mpc volume " + str(100 + 2 * newVol))
 
-        except:
-            pass
 
 
 ######## - ######

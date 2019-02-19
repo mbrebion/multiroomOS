@@ -123,6 +123,7 @@ class SubSetting(SubMenu):
                 self.property=system.getDataFromShelf(name)
             except :
                 self.property=default # to be overriden
+                system.putToShelf(name, self.property)
         else:
             self.property=default
 
@@ -439,9 +440,7 @@ class Artists(SubMenu):
     def populate(self):
         self.clearEntries()
         system.startCommand("mpc update")
-        output = subprocess.check_output("/usr/bin/mpc list AlbumArtist",shell=True)
-        allArtists=output.split('\n')
-
+        allArtists= system.startReturnCommand("/usr/bin/mpc list AlbumArtist")
 
         self.clearEntries()
         for name in allArtists:
@@ -462,8 +461,8 @@ class Artist(SubMenu):
         self.populate()
 
     def populate(self):
-        output = subprocess.check_output("/usr/bin/mpc list Album AlbumArtist \""+self.name+"\"",shell=True)
-        allAlbums=output.split('\n')[0:-1] # this contains all artist which released at least an album !
+        output = system.startReturnCommand("/usr/bin/mpc list Album AlbumArtist \""+self.name+"\"")
+        allAlbums=output[0:-1] # this contains all artist which released at least an album !
         self.clearEntries()
         for name in allAlbums:
             album=Album(self,name)
@@ -685,7 +684,6 @@ class CD(SubMenu):
         if self.title==self.oldTitle:
             return
 
-
         self.oldTitle=self.title
         self.clearEntries()
         if self.getAncestorMenu().os.cdInside==True:
@@ -789,18 +787,6 @@ class CDPlayer(SubMenu):
     def _previous(self):
         system.startCommand("mpc prev")
         self.mpcH.updateView()
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

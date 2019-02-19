@@ -56,7 +56,7 @@ wifiStatus=True
 def shutdownWifi():
     global wifiStatus
     if wifiStatus:
-        print "wifi down !"
+        print("wifi down !")
         startCommand("sudo ifconfig wlan0 down")
 
         wifiStatus=False
@@ -69,7 +69,7 @@ def restartWifi():
 
 
 def startReturnCommand(command):
-    return subprocess.check_output(command, shell=True).split("\n")
+    return subprocess.check_output(command, shell=True).decode("utf-8").split("\n")
 
 def isFile(name):
     return osys.path.isfile(name)
@@ -111,7 +111,7 @@ def startSnapServer():
 
     FNULL = open(osys.devnull, 'w')
     subPSServer=subprocess.Popen(['/usr/bin/snapserver'],stdout=FNULL, stderr=subprocess.STDOUT)
-    print "     snapserver created"
+    print("     snapserver created")
 
 
 def stopSnapServer():
@@ -119,7 +119,7 @@ def stopSnapServer():
     if subPSServer != False:
         subPSServer.kill()
         subPSServer=False
-        print "     snapserver killed"
+        print("     snapserver killed")
 
 
 def switchToSnapCastOutput():
@@ -144,8 +144,8 @@ def startSnapClientSimple():
     if subPSClient != False:
         stopSnapClient()
     FNULL = open(osys.devnull, 'w')
-    subPSClient=subprocess.Popen(['/usr/bin/snapclient', '-s 2 '],stdout=FNULL, stderr=subprocess.STDOUT)
-    print "     snapclient simple created"
+    subPSClient=subprocess.Popen(['/usr/bin/snapclient', '-s 6 '],stdout=FNULL, stderr=subprocess.STDOUT)
+    print("     snapclient simple created")
 
 def startSnapClient():
     """
@@ -158,7 +158,7 @@ def startSnapClient():
 
     FNULL = open(osys.devnull, 'w')
     subPSClient=subprocess.Popen(['/usr/bin/snapclient', '-s 6 '],stdout=FNULL, stderr=subprocess.STDOUT)
-    print "     snapclient created"
+    print("     snapclient created")
 
 
 def stopSnapClient():
@@ -166,7 +166,7 @@ def stopSnapClient():
     if subPSClient != False:
         subPSClient.kill()
         subPSClient=False
-        print "     snapclient killed"
+        print("     snapclient killed")
 
 
 def shutdownPi():
