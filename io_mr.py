@@ -7,7 +7,8 @@ from libraries.faceButtons import FaceButtons
 from time import sleep
 from libraries.tcpComm import serverThread,connectToHost,ClientThread
 from libraries.constants import MSG_BUTTON,MSG_BACK,MSG_MENU,MSG_SELECT,MSG_VOL,MSG_PROPAGATE_ORDER
-from config import rotOne,rotTwo,server,lcdLines,entries
+from config import rotOne,rotTwo,server,lcdLines,entries,name
+#from libraries.networkPycos import Node
 import datetime,pytz
 from system import checkCDStatus
 
@@ -32,6 +33,9 @@ class Io(object):
         self.faceButtons=FaceButtons()
         self.resend=False
 
+        #pycos
+        #node=Node(name,"pipou")
+
         # init screen
         try :
             lcd_init()
@@ -54,10 +58,10 @@ class Io(object):
 
     def sendMessageToAll(self,text):
         if server:
-            self.tcpServer.sendToAllDevices(text)
+            self.tcpServer.sendToAllDevices(text+","+name)
         else:
             if self.connectedToHost:
-                self.client.send(MSG_PROPAGATE_ORDER+","+text)
+                self.client.send(MSG_PROPAGATE_ORDER+","+text+","+name)
 
 
 
@@ -76,6 +80,10 @@ class Io(object):
 
 
         self.os.menu.setCDInfos(out)
+
+    def updateRotariesStates(self):
+        self.volumeCtl.updateState()
+        self.menuCtl.updateState()
 
     def mainLoop(self):
         """
@@ -136,6 +144,7 @@ class Io(object):
                     self.cth()
                 count = 1
                 self.dealWithCD()
+                self.updateRotariesStates()
 
 
             # not often

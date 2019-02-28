@@ -4,7 +4,7 @@ __author__ = 'mbrebion'
 import socket
 from time import sleep
 import threading
-from config import host,hortPort
+from config import host,hortPort,name
 from libraries.constants import MSG_PROPAGATE_ORDER,MSG_ORDER
 
 from libraries.constants import CLIENT_DEVICE,CLIENT_REMOTE,CLIENT_MAIN
@@ -19,7 +19,6 @@ def connectToHost():
         addr=socket.gethostbyname(host+".local")
     except socket.gaierror :
         return False
-    print(addr)
     skt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     skt.settimeout(0.5)
     try :
@@ -47,11 +46,11 @@ class ClientThread(threading.Thread):
         self.alive=True
 
         self.kind = self.clientsocket.recv(64).decode("utf-8") # kind of client : can be device or remoteControl or mainPlayer
-        print ("kind of client : " , self.kind)
         if self.kind==CLIENT_DEVICE:
             self.clientsocket.sendall(CLIENT_MAIN.encode())
 
         self.start()
+
 
     def send(self,text):
         self.clientsocket.sendall((text+'\n').encode())
@@ -64,7 +63,6 @@ class ClientThread(threading.Thread):
             try :
                 r = self.clientsocket.recv(64).decode("utf-8")
                 msg=r.split(",")
-                print("msg : ",msg)
                 # in some cases, a closed client can send numerous void messages
                 if msg==['']:
                     countFail+=1
@@ -76,10 +74,10 @@ class ClientThread(threading.Thread):
                 if msg != False:
                     if msg[0]==MSG_PROPAGATE_ORDER:
                         # in this case, the order is treated and propagated to other devices
-                        self.os.takeAction(msg[1],int(msg[2]))
-                        self.os.io.tcpServer.propagateMessage(msg[1]+","+msg[2],self)
+                        self.os.takeAction(msg[1],int(msg[2]),msg[3])
+                        self.os.io.tcpServer.propagateMessage(msg[1]+","+msg[2]+","+msg[3],self)
                     else:
-                        self.os.takeAction(msg[0],int(msg[1]))
+                        self.os.takeAction(msg[0],int(msg[1]),msg[2])
                 sleep(0.02)
 
 
@@ -87,19 +85,29 @@ class ClientThread(threading.Thread):
                 pass
             except ValueError:
                 print("too much messages received. please slow down : ")
-                print(msg)
             except :
                 print("unknown error with tcp")
+                print(msg)
+
 
         if self.kind==CLIENT_MAIN:
             self.os.connectionLost()
         #print "client has stopped"
 
 
+
+
+
+###############################################################################################
+######################################### server side #########################################
+###############################################################################################
+
+
+
 class serverThread(threading.Thread):
     """
     This class deals with the server awaiting for outer client connections.
-    One a client connect, a new client thread is allocated and will deal with it until end of connection.
+    Once a client connect, a new client thread is allocated and will deal with it until end of connection.
     """
     def __init__(self, os):
         # init socket comm
@@ -125,9 +133,9 @@ class serverThread(threading.Thread):
                     print("error in send to client device (sendToAll)")
                     client.alive=False
 
+
     def propagateMessage(self,text,source):
         # send msg to all devices included this one, except to the one who sent the message
-        print("propagate function   :   ", text)
         self.checkAliveClients()
 
         for client in self.clients:
@@ -166,8 +174,8 @@ class serverThread(threading.Thread):
 
 
     def run(self):
-        self.soc.listen(5)
-        self.soc.settimeout(0.2)
+        self.soc.listen(8)
+        self.soc.settimeout(0.3)
         while self.alive:
             try :
                 (clientsocket, (ip, port)) = self.soc.accept()

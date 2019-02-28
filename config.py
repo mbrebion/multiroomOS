@@ -26,6 +26,7 @@ server = False # true for main hifi station ; false for other devices which then
 
 
 # host ip address
+name="piMain"
 host="piMain"
 hortPort=15555
 

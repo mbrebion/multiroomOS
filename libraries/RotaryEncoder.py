@@ -37,12 +37,12 @@ class RotaryEncoder(object):
         GPIO.setup(self.dt, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
         GPIO.setup(self.switch, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-        self.current=[GPIO.input(self.clk),GPIO.input(self.dt),0] # current state
+        self.updateState()
 
         # add callback event
-        GPIO.add_event_detect(self.clk, GPIO.BOTH, callback=self.rotaryCallState) # bouncing has been removed and it seems to work well
-        GPIO.add_event_detect(self.dt, GPIO.BOTH, callback=self.rotaryCallState)
-        GPIO.add_event_detect(self.switch, GPIO.BOTH, callback=self.switchCall,bouncetime=100)
+        GPIO.add_event_detect(self.clk, GPIO.BOTH, callback=self.rotaryCallState,bouncetime=1) # bouncing has been removed and it seems to work well
+        GPIO.add_event_detect(self.dt, GPIO.BOTH, callback=self.rotaryCallState,bouncetime=1)
+        GPIO.add_event_detect(self.switch, GPIO.BOTH, callback=self.switchCall,bouncetime=400)
 
         # a test on the rotary showed that bouncetime did not exceded 10 \mu s
         # a value of 1ms is therefore safe
@@ -54,8 +54,6 @@ class RotaryEncoder(object):
 
     def rotaryCallState(self,chanel):
         state=GPIO.input(chanel)
-        #print "event : "+ str(chanel)
-        #print state
 
         if chanel==self.clk:
             target=self.clk
@@ -65,29 +63,36 @@ class RotaryEncoder(object):
             index=1
 
         if self.current[index]==state : # wrong hit : already in this state
+            #print("wrong hit : " + str(index) +" : "+str(state) )
             return
+
 
         self.last=self.current
         self.current[index]=state
 
-        if target==self.clk: # clockwise assumed here
+        if target==self.clk and self.counts>=0: # clockwise assumed here
             if state == 1 and self.last[1]==0:
                 self.counts+=1
+                return
             if state == 0 and self.last[1]==1 :
                 self.counts+=1
+                return
 
-        if target == self.dt : # anti clockwise assumed here
+        if target == self.dt and self.counts<=0: # anti clockwise assumed here
             if state ==0 and self.last[0]==1:
                 self.counts-=1
+                return
             if state ==1 and self.last[0]==0 :
                 self.counts-=1
+                return
 
 
+    def updateState(self):
+        self.current = [GPIO.input(self.clk), GPIO.input(self.dt), 0]  # current state
 
     def getDec(self):
         store=self.counts
         self.counts=0
-
         return store
 
     def getSwitch(self):

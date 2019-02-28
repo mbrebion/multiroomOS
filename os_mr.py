@@ -39,16 +39,16 @@ class Os(object):
         self.changeMode(MODE_LOCAL)
         # never ending loop
 
-        system.startCommand("mpc clear") # clear last mpd playlist
-        system.startCommand("mpc update")
         system.switchToLocalOutput()
-
+        system.startCommand("mpc clear")  # clear last mpd playlist
+        system.startCommand("mpc stop")
+        system.startCommand("mpc update")
 
         self.io.mainLoop() # main os thread
         system.closeShelf()
 
 
-    def takeAction(self,message,value):
+    def takeAction(self,message,value,source="piMain"):
         """
         can be called by different means (and threads)
         :param message: kind of action to take
@@ -121,7 +121,7 @@ class Os(object):
 
             if value==1 :
                 """
-                mpd content in every room
+                mpd content in every room (snapcast)
                 """
 
                 if self.lastOrder != ORDER_SSYNC:
