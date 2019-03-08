@@ -130,7 +130,7 @@ class serverThread(threading.Thread):
                 try:
                     client.send(text)
                 except :
-                    print("error in send to client device (sendToAll)")
+                    print("error in send to client device (_sendMSG)")
                     client.alive=False
 
 

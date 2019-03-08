@@ -1,10 +1,14 @@
 import socket,sys
 import pycos
 from time import sleep
+import os,shlex
 import pycos.netpycos
-from networkMasterPycos import STATUS_MASTER,STATUS_FOLLOWER,get_ip,GOODBYE_MASTER,GOODBYE,SYSTEM,TIMEOUT,HELLO,ASK_MASTER,COMM
+from networkMasterPycos import STATUS_MASTER,STATUS_FOLLOWER,get_ip,GOODBYE_MASTER,GOODBYE,SYSTEM,TIMEOUT,HELLO,ASK_MASTER,COMM,MASTER,NEW_MASTER,ipv4_udp_multicast,MASTER_PORT
+
+import subprocess
 
 
+# first attempt to build a network of remotes with a discovery method
 
 class Node:
 
@@ -34,22 +38,31 @@ class Node:
         self.remoteDevices={} # dict containing names of devices and pycos comm tasks associated
         self.remoteDevicesSYST = {}  # dict containing names of devices and pycos system tasks associated
 
-        pycos.Pycos(node=get_ip(),name=name) # instantiate pycos with the good IP (default behaviour non working on rpis !!!)
+        pycos.Pycos(node=get_ip(),name=name,ipv4_udp_multicast=ipv4_udp_multicast) # instantiate pycos with the good IP (default behaviour non working on rpis !!!)
         self.alive=True
         self.master=None
+
         self._receiver=pycos.Task(self._receiver)  # used for comms
-        pycos.Task(self._findMaster,[]) # deals with network
+        pycos.Task(self._findMaster) # deals with network
+
         while self.master==None:
             sleep(0.1)
 
+        print("start listening master")
         pycos.Task(self._listenMaster)
-        print("end of init")
+
+
+
+
+
 
     def listToString(self):
         out = ""
-        for e in self.remoteDevicesSYST.keys():
-            out += e + ","
+        for e in self.remoteDevices.keys():
+            out += e + " "
         return out[0:-1]
+
+
 
     def shutdown(self):
         if self.master!=None:
@@ -63,73 +76,9 @@ class Node:
     ############################################# discovering part ##########################################
     #########################################################################################################
 
-    def masterTask(self, names,task=None):
-        """
-
-        :param names: list of already known nodes (usefull when master is created after a former master failure
-        :param task:
-        :return:
-        """
-        task.set_daemon()
-        task.register(self.networkTag)
-        print(" master task : " + self.networkTag)
-        for name in names:
-            follower = yield pycos.Task.locate(name + SYSTEM, timeout=TIMEOUT)
-            if follower != None:
-                self.remoteDevicesSYST[name] = follower
-                follower.send(self.listToString())
-
-        while self.alive:
-            # receive message
-            msgName = yield task.receive(TIMEOUT)
-            if msgName==None:
-                continue
-            try:
-                name,msg=msgName.split(",")
-            except:
-                print("strange mess received ",msgName)
 
 
-            if msg==HELLO:
-                # new (or not) remote device is saying hello
-                print("received hello from ", name)
-                if name!=self.name:
-                    loc = yield pycos.Pycos().locate(name)
-                    out = yield pycos.Pycos().peer(loc, stream_send=True)
-                    follower = yield pycos.Task.locate(name + SYSTEM, location=loc, timeout=TIMEOUT * 5)
-                else:
-                    follower = yield pycos.Task.locate(name + SYSTEM, timeout=TIMEOUT * 5)
-
-                if follower != None:
-                    self.remoteDevicesSYST[name]=follower
-                else :
-                    print("could not locate "+name+SYSTEM)
-
-            elif msg==GOODBYE  or msg==GOODBYE_MASTER:
-                # remote device is saying goodbye
-                del self.remoteDevicesSYST[name]
-
-
-
-            elif msg in self.remoteDevices.keys():
-                lostNode=msg
-                # if a remote device advert another remote device names, we must check that it is still alive
-                lostFollower = yield pycos.Task.locate(lostNode + SYSTEM, timeout=TIMEOUT)
-                if lostFollower==None:
-                    del self.remoteDevicesSYST[lostNode]
-
-
-            for follower in self.remoteDevicesSYST.values():
-                follower.send(self.listToString())
-
-            if msg==GOODBYE_MASTER and len(self.remoteDevicesSYST)>0:
-                # remote device owning master is leaving, a new one must be chosen
-                v = list(self.remoteDevicesSYST.values())
-                v[0].send(ASK_MASTER)
-
-
-
-    def _findMaster(self,names,task=None):
+    def _findMaster(self,task=None,masterLoc=None):
 
         """
         en cas d'absence de master, ce node DEVIENT le master
@@ -138,16 +87,28 @@ class Node:
         :return:
         """
 
-        self.master = yield pycos.Task.locate(self.networkTag,timeout=TIMEOUT)
+        # boucle infinie,
+        self.master=None
+        if masterLoc==None:
+            masterLoc = yield pycos.Pycos.instance().locate(self.networkTag,timeout=TIMEOUT*2)
+        if masterLoc!=None:
+            self.master = yield pycos.Task.locate(self.networkTag+MASTER,timeout=TIMEOUT,location=masterLoc)
+
 
         if self.master== None:
+
             # with no master, this node become master
-            self.master=pycos.Task(self.masterTask,names)
+            cmd=["/usr/bin/python3",__location__+"networkMasterPycos.py",self.networkTag]+list(self.remoteDevices.keys())
+            print(cmd)
+            subprocess.Popen(cmd)
+            yield task.sleep(0.8) # wait for master to be properly instanciated
+            #masterLoc = yield pycos.Pycos().locate(self.networkTag) # locate master (on same remote but in a different process)
+            masterLoc=pycos.netpycos.Location(get_ip(), MASTER_PORT)
+            self.master = yield pycos.Task.locate(self.networkTag + MASTER,location=masterLoc) # retrieve master task
             self.status=STATUS_MASTER
-            print("master created")
         else:
             self.status=STATUS_FOLLOWER
-
+        print("----------------------------------------new status : "+self.status+" of "+str(masterLoc))
 
 
     def _tellMaster(self,msg,task=None):
@@ -173,7 +134,17 @@ class Node:
                 continue
             # two kind of messages : else an order to become the new master, else a new list of remote devices
             if ASK_MASTER in msgList:
-                pycos.Task(self._findMaster,list(self.remoteDevices.keys()))
+                yield task.sleep(1)
+                pycos.Task(self._findMaster)
+                print("asked to become master")
+
+            elif NEW_MASTER in msgList :
+                if self.status==STATUS_FOLLOWER:
+                    order,loc=msgList.split(",")
+                    yield task.sleep(1)
+                    masterLoc = pycos.netpycos.Location(loc.split(":")[0], loc.split(":")[1])
+                    pycos.Task(self._findMaster,masterLoc)
+                    print("ask to locate new master")
 
             else:
                 pycos.Task(self._updateList, msgList.split(","))
@@ -193,9 +164,8 @@ class Node:
             if not name in self.remoteDevices.keys():
                 if name!=self.name:
                     loc = yield pycos.Pycos().locate(name)
-                    out = yield pycos.Pycos().peer(loc,stream_send=True)
                     follower = yield pycos.Task.locate(name + COMM, location=loc, timeout=TIMEOUT * 5)
-                    print("update st for (" + name + "): " + str(out))
+                    print("update st for (" + name + "): ")
                 else:
                     follower = yield pycos.Task.locate(name + COMM, timeout=TIMEOUT)  # must not fail ;-)
 
@@ -209,14 +179,9 @@ class Node:
             if name not in names:
                 toDelete.append(name)
         for name in toDelete:
+            print("delete from list : "+name)
             del self.remoteDevices[name]
-            loc = yield pycos.Pycos().locate(name)
-            yield pycos.Pycos().close_peer(loc)
 
-        if len(self.remoteDevices.keys())==1 and self.status==STATUS_FOLLOWER:
-            # only us remaining : then we must start a master
-            print("become master ?")
-            pycos.Task(self._findMaster,list(self.remoteDevices.keys()))
 
         print("list updated : "+str(self.remoteDevices.keys()))
 
@@ -265,6 +230,8 @@ class Node:
             return
         pycos.Task(self._send,name,msg)
 
+
+__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))+"/"
 
 name = sys.argv[1]
 node=Node(name,"pipou")
