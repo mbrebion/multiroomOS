@@ -1,6 +1,9 @@
 __author__ = 'mbrebion'
 
 
+BIG="big"
+SMALL="small"
+
 MSG_WIFI="wifi"
 MSG_VOL="vol"
 MSG_MENU="menu"
@@ -12,7 +15,9 @@ MSG_BUTTON="button"
 MSG_PRINT="print"
 MSG_ORDER="order"
 MSG_REFRESH="refresh"
-MSG_PROPAGATE_ORDER="propagate"
+MSG_SUBSCRIBE="subscribe"
+MSG_UNSUBSCRIBE="unsubscribe"
+
 
 
 MODE_LOCAL="local"

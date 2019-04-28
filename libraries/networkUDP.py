@@ -1,23 +1,25 @@
-MULTICAST_ADDR = "239.255.4.3"
-ANNOUNCE_ALIVE_DELAY = 15 # time (in s) between annoucement, must be >=1 s)
-
-SEP=":,:"
-TERM="/EOL"
-
-DEST_ALL="toAll"
-MSG_ALIVE = "hello"
-MSG_LEAVING = "bye"
-MSG_USER = "user"
-
-# second attempt to build a network of remotes with a discovery method
-# multi cast is used for advertizing and no master/server is needed anymore -> more flexible ???
-
-
 import threading
 import sys
 import socket
 import time
 import struct
+
+
+MULTICAST_ADDR = "239.255.4.3"
+ANNOUNCE_ALIVE_DELAY = 5 # time (in s) between annoucement, must be >=1 s)
+
+
+SEP=":,:"
+TERM="/EOL"
+
+DEST_ALL="toAll"
+MSG_ALIVE = "alive"
+MSG_HELLO = "hello"
+MSG_HRU = "howRu"
+MSG_LEAVING = "bye"
+MSG_USER = "user"
+MSG_USER_CONFIRM = "userC"
+
 
 
 #############################################################################
@@ -63,7 +65,7 @@ class Singleton(type):
         Singleton._memo.pop(cls, None)
 
 
-class _ListenLoopThread(threading.Thread):
+class _ListenAndAdvertLoopThread(threading.Thread):
     """
     listening thread
     """
@@ -84,52 +86,77 @@ class _ListenLoopThread(threading.Thread):
         return self.nUDP.name in dests or DEST_ALL in dests
 
     def run(self):
+        lastSent=time.time()
+
+        # message sent two times (safer)
+        self.nUDP._sendMSG(self.nUDP.name, kind=MSG_HELLO)
+        time.sleep(0.002)
+        self.nUDP._sendMSG(self.nUDP.name, kind=MSG_ALIVE)
+
         while self.nUDP.alive:
             # Data waits on socket buffer until we retrieve it.
             # NOTE: Normally, you would want to compare the incoming data's source address to your own, and filter it out
             #       if it came from the current machine. Everything you send gets echoed back at you if your socket is
             #       subscribed to the multicast group.
+
+            now=time.time()
+            if now-lastSent>ANNOUNCE_ALIVE_DELAY:
+                self.nUDP._sendMSG(self.nUDP.name, kind=MSG_ALIVE)
+                lastSent=now
+
+
             try:
-                data, address = self.nUDP.my_recvsocket.recvfrom(120)  # TODO : to be improved
+                data, address = self.nUDP.my_recvsocket.recvfrom(256)  # TODO : to be improved
                 data=data.decode()
+
                 if not data.endswith(TERM):
                     print("partial message is received - we must deal with it")
+                    print(data)
+                    print()
                     continue
                 else :
                     data=data.replace(TERM,"")
 
                 chain = data.split(SEP)
                 kind,dests,message = chain
-
                 if not self.concerned(dests):
                     continue
 
-                if kind == MSG_ALIVE:
-                    self._dealWithALIVE(message, address)
+                sender = "unknown"
+                for remote in self.nUDP.remoteDevices.values():
+                    if remote.address == address:
+                        sender = remote.name
+                        break
 
-                elif kind == MSG_LEAVING:
-                    self._dealWithLeaving(message)
-
-                elif kind == MSG_USER:
-                    # we must find the sender by checking its IP and PORT
-                    sender = "unknown"
-                    for remote in self.nUDP.remoteDevices.values():
-                        if remote.address == address:
-                            sender = remote.name
-                            break
-                    self.nUDP.funcRecep(message, sender)
-
-                else:
-                    print("received : " + data + " from " + str(address))
             except socket.timeout:
-                pass
+                continue
             except IndexError:
-                print("received a message in the wrong format : "+data)
-            except ValueError:
-                print("received a message in the wrong format : " + data)
-            finally:
-                self._checkStillALIVE()
+                print("received a message in the wrong format (index error): " + data)
+                continue
 
+            if kind == MSG_HRU:
+                print("received HRU from ", sender)
+                self.nUDP._sendMSG(self.nUDP.name, MSG_ALIVE)
+
+            elif kind == MSG_HELLO:
+                self._dealWithALIVE(message, address,first=True)
+
+            elif kind == MSG_ALIVE:
+                self._dealWithALIVE(message, address)
+
+            elif kind == MSG_LEAVING:
+                self._dealWithLeaving(message)
+
+            elif kind == MSG_USER:
+                # we must find the sender by checking its IP and PORT
+                self._dealWithALIVE(sender, address)
+                self.nUDP.funcRecep(message, sender)
+            else:
+                print("received : " + data + " from " + str(address))
+
+            self._checkStillALIVE()
+
+        self.nUDP.my_sendSocket.close()
         self.nUDP.my_recvsocket.close()
 
     def _checkStillALIVE(self):
@@ -137,7 +164,12 @@ class _ListenLoopThread(threading.Thread):
         tim = time.time()
         for name in self.nUDP.remoteDevices.keys():
             lastSeen = self.nUDP.remoteDevices[name].lastSeen
-            if (tim - lastSeen) > ANNOUNCE_ALIVE_DELAY * 2.1:  # can miss up to 3 alive messages before warning
+
+            if (tim - lastSeen) > ANNOUNCE_ALIVE_DELAY * 2.1:
+                self.nUDP._sendMSG(self.nUDP.name,MSG_HRU,dest=name)
+
+
+            if (tim - lastSeen) > ANNOUNCE_ALIVE_DELAY * 4.1:  # can miss up to 4 alive messages before warning
                 toKill.append(name)
 
         changes = False
@@ -145,17 +177,20 @@ class _ListenLoopThread(threading.Thread):
             changes = True
             del self.nUDP.remoteDevices[name]
         if changes:
-            print("known hosts " + str(self.nUDP.remoteDevices.keys()))
+            self.nUDP.funcHostsUpdate(self.nUDP.remoteDevices)
 
-    def _dealWithALIVE(self, nameOfRemote, address):
+    def _dealWithALIVE(self, nameOfRemote, address,first=False):
 
-        if nameOfRemote not in self.nUDP.remoteDevices:
-            remote = RemoteInfo(name=nameOfRemote, address=address)
-            self.nUDP.remoteDevices[nameOfRemote] = remote
+        if nameOfRemote not in self.nUDP.remoteDevices or first:
+            self.nUDP.remoteDevices[nameOfRemote] = RemoteInfo(name=nameOfRemote, address=address)
             self.nUDP.funcHostsUpdate(self.nUDP.remoteDevices) # advert the user with the function he has provided (default func just print remotes names)
+
             # we then announce to him if its not us :
-            if nameOfRemote != self.nUDP.name:
-                self.nUDP._sendMSG(self.nUDP.name,MSG_ALIVE,dest=nameOfRemote)  # maybe a bad idea
+            if nameOfRemote != self.nUDP.name and first:
+                self.nUDP._sendMSG(self.nUDP.name,MSG_ALIVE,dest=nameOfRemote)
+                time.sleep(0.001) # resend the message might be safer
+                self.nUDP._sendMSG(self.nUDP.name, MSG_ALIVE, dest=nameOfRemote)
+
         else:
             self.nUDP.remoteDevices[nameOfRemote].lastSeen = time.time()
 
@@ -163,38 +198,6 @@ class _ListenLoopThread(threading.Thread):
         if nameOfRemote in self.nUDP.remoteDevices.keys():
             del self.nUDP.remoteDevices[nameOfRemote]
             self.nUDP.funcHostsUpdate(self.nUDP.remoteDevices)
-
-
-class _AnnounceLoopThread(threading.Thread):
-    """
-    announcing thread used for advertizing
-    """
-    def __init__(self,node=None):
-        """
-        this thread is launched right after being instanciated,
-        """
-
-        if node is None:
-            self.nUDP = NetworkUDP()  # retrieve the sole instance of NetworkUDP
-        else:
-            self.nUDP=node
-
-        threading.Thread.__init__(self)
-        self.start()
-
-    def run(self):
-        while self.nUDP.alive:
-            # Send data. Destination must be a tuple containing the ip and port.
-            self.nUDP._sendMSG(self.nUDP.name,kind=MSG_ALIVE)
-
-            count = 0
-            countMax=ANNOUNCE_ALIVE_DELAY
-            while count < countMax and self.nUDP.alive:
-                # the sleep is splitted into n steps where n is total number of second to wait,
-                # this allows this loop to react in less than one second when it is asked to stop.
-                time.sleep(ANNOUNCE_ALIVE_DELAY / countMax)
-                count += 1
-        self.nUDP.my_sendSocket.close()
 
 
 def _defaultRecep(msg, source):
@@ -226,7 +229,7 @@ class NetworkUDP(metaclass=Singleton):
     Main class of the project used to deal with network communications.
     """
 
-    def __init__(self, name=None, multicast_ip=MULTICAST_ADDR, port=1234, fr=_defaultRecep, fhu=_defaultHostUpdate):
+    def __init__(self, name=None, multicast_ip=MULTICAST_ADDR, port=3234, fr=_defaultRecep, fhu=_defaultHostUpdate):
 
         """
         This class can only be instanciated once, any attempts to re-instanciate it will provide the same object (singleton patern)
@@ -263,9 +266,8 @@ class NetworkUDP(metaclass=Singleton):
         self.my_sendSocket = self._create_socket(multicast_ip, port + 1)
         self.my_recvsocket = self._create_socket(multicast_ip, port)
 
-        # these threads are started right after being created
-        self.llt = _ListenLoopThread(self)
-        self.alt = _AnnounceLoopThread(self)
+        # this thread is started right after being created
+        self.llt = _ListenAndAdvertLoopThread(self)
 
     ####### internal methods #######
     def _create_socket(self, multicast_ip, port):
@@ -276,7 +278,7 @@ class NetworkUDP(metaclass=Singleton):
 
         # create a UDP socket
         my_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        my_socket.settimeout(2)  # wait no more than two second
+        my_socket.settimeout(0.5)  # wait no more than half second
 
         # allow reuse of addresses
         my_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -338,13 +340,17 @@ class NetworkUDP(metaclass=Singleton):
         """
         allFound = True
 
-        if kind not in [MSG_ALIVE, MSG_LEAVING, MSG_USER] or self.alive==False:
-            print("kind " + kind + "not allowed for sending messages")
+        if not self.alive:
+            return
+
+        if kind not in [MSG_ALIVE, MSG_LEAVING, MSG_USER,MSG_HELLO,MSG_HRU,MSG_USER_CONFIRM]:
+            print("kind " + kind + " not allowed for sending messages")
             return False
 
         destStr = "["
         if not isinstance(dest, list):
             dest = [dest]
+
         for name in dest:
             if name not in self.remoteDevices.keys() and name != DEST_ALL:
                 allFound = False
@@ -355,6 +361,7 @@ class NetworkUDP(metaclass=Singleton):
         message = kind + SEP + destStr + SEP + msg + TERM  # this is the only format accepted for messages
         self.my_sendSocket.sendto(message.encode(), (self.multicast_ip, self.port))
         return allFound
+
 
     ####### methods the user may use #######
     def get_local_ip(self):
@@ -375,30 +382,35 @@ class NetworkUDP(metaclass=Singleton):
         """
         return cls(*args, **kwargs)
 
-    def sendMSG(self,msg,dest=DEST_ALL):
+    def sendMSG(self,msg,dest=DEST_ALL,confirm=False):
         """
         function used to send messages to other remotes
         :param msg: the message to be sent
         :param dest: name (or list of names) of remotes devices which are concerned by this message
+        :param confirm: if set to True, a confirmation is waited to ensure this message has been correctly received. Do not work with DEST_ALL, This function is then blocking
         :return: true if all receivers are known host, else false
         """
         return self._sendMSG(msg,MSG_USER,dest)
+
+
 
     def leaveNetwork(self):
         """
         announce the network that we are leaving
         everything is then cleared properly
-
         :return: nothing
         """
 
         self._sendMSG(self.name, MSG_LEAVING, DEST_ALL)
+        self._drop_multicast_membership(self.my_sendSocket, self.multicast_ip)
+        self._drop_multicast_membership(self.my_recvsocket, self.multicast_ip)
         self.alive = False
+        Singleton.empty(NetworkUDP)
 
 
 if __name__ == '__main__':
     nUDP = NetworkUDP()
-
+    print(" test of udp network")
     goOn = True
     while goOn:
         msg = input()

@@ -1,11 +1,10 @@
 __author__ = 'mbrebion'
 
-import subprocess
 from config import radios, entries
 import system
 from libraries.mpcHelper import MpcHelper
-from config import lcdLines # dangerous, to be deleted# dangerous, to be deleted
-
+from config import kind # dangerous, to be deleted# dangerous, to be deleted
+from libraries.constants import BIG,SMALL
 
 
 #######################################
@@ -110,8 +109,8 @@ class SubSetting(SubMenu):
         """
 
         :param parent: parent subsetting menu
-        :param name: name
-        :param hint: displayed tex
+        :param name: name of the property to be stored in shelf
+        :param hint: displayed text
         :param saved: if True, the property saved and retrieved from shelf
         :return: nothing
         """
@@ -153,7 +152,7 @@ class SubSetting(SubMenu):
         self._modifyProperty(dec)
         out=self._showProperty()
 
-        if lcdLines>2:
+        if kind==BIG:
             self.name= self.hint
             self.parent.actionTagTwo= out
         else :
@@ -476,10 +475,11 @@ class Artist(SubMenu):
             pass
 
     def onShowed(self):
-        if lcdLines>2 :
-            self.parent.actionTagTwo = "  -- [" + str(self.parent.count+1)+"/"+str(len(self.parent.list)) +"] --"
-        else :
-            self.parent.name="Artists " + "[" + str(self.parent.count+1)+"/"+str(len(self.parent.list)) +"]"
+        #if kind==BIG :
+        #    self.parent.actionTagTwo = "  -- [" + str(self.parent.count+1)+"/"+str(len(self.parent.list)) +"] --"
+        #else :
+        #    self.parent.name="Artists " + "[" + str(self.parent.count+1)+"/"+str(len(self.parent.list)) +"]"
+        self.parent.name = "Artists " + "[" + str(self.parent.count + 1) + "/" + str(len(self.parent.list)) + "]"
 
 
 class Album(SubMenu):
@@ -614,7 +614,8 @@ class MagicMode(SubSetting):
 
 class MPDVolume(SubSetting):
     def __init__(self,parent,name="MPDVolume", hint="Volume MPD"):
-        SubSetting.__init__(self,parent,name,hint,70,True)
+        SubSetting.__init__(self,parent,name,hint,85,True)
+
 
     def _showProperty(self):
         return str(self.property)

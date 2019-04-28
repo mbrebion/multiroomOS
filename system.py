@@ -129,23 +129,13 @@ def switchToSnapCastOutput():
 
 
 def switchToLocalOutput():
-    stopSnapServer()
     startCommand("mpc enable 2")
     startCommand("mpc disable 1")
+    stopSnapServer()
+
 
 
 subPSClient = False
-def startSnapClientSimple():
-    """
-    use pulse output (needed for volume control relying on hifiberry mini amp)
-    :return:
-    """
-    global subPSClient
-    if subPSClient != False:
-        stopSnapClient()
-    FNULL = open(osys.devnull, 'w')
-    subPSClient=subprocess.Popen(['/usr/bin/snapclient', '-s 6 '],stdout=FNULL, stderr=subprocess.STDOUT)
-    print("     snapclient simple created")
 
 def startSnapClient():
     """
