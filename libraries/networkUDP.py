@@ -1,16 +1,21 @@
 import threading
 import sys
+import asyncio
 import socket
 import time
 import struct
 
 
 MULTICAST_ADDR = "239.255.4.3"
-ANNOUNCE_ALIVE_DELAY = 5 # time (in s) between annoucement, must be >=1 s)
+ANNOUNCE_ALIVE_DELAY = 10 # time (in s) between annoucement, must be >=1 s)
+TIMEOUT=1
 
+udpPort=3234
+tcpPortServer=4112
 
 SEP=":,:"
 TERM="/EOL"
+TERMtcp=b"/EOL"
 
 DEST_ALL="toAll"
 MSG_ALIVE = "alive"
@@ -19,12 +24,163 @@ MSG_HRU = "howRu"
 MSG_LEAVING = "bye"
 MSG_USER = "user"
 MSG_USER_CONFIRM = "userC"
-
+MSG_QUIT_TCP="quitQUITquit"
 
 
 #############################################################################
 ###################### utilities classes and functions ######################
 #############################################################################
+
+class _TCPNetwork(threading.Thread):
+    """
+    listening thread
+    """
+    def __init__(self,node=None):
+        """
+        this thread is launched right after being instanciated,
+        """
+        if node is None:
+            self.nUDP = NetworkUDP()  # retrieve the sole instance of NetworkUDP
+        else:
+            self.nUDP=node
+
+        self.loopCreated=False
+        threading.Thread.__init__(self)
+        self.printers={}
+
+        self.start()
+
+
+
+
+
+    def run(self):
+        try:
+            asyncio.run(self.main())
+        except asyncio.CancelledError:
+            print("asyncio loop closed")
+
+
+
+    async def main(self):
+        self.loop = asyncio.get_event_loop()
+        self.loopCreated = True
+        self.server =  await asyncio.start_server(self.handle_client, "", tcpPortServer,start_serving=False)
+        async with self.server:
+            await self.server.serve_forever()   # this appears to be a blocking call
+
+
+
+    async def handle_client(self, reader, writer,name=False):
+        request = None
+
+        addr = writer.get_extra_info('peername')
+
+
+        if name==False :
+            #print(" (receiver) tcp connexion established with ", addr)
+            sender = await reader.readuntil(TERMtcp)
+            sender = self.decode(sender)
+        else :
+
+            #print(" (asker) tcp connexion established with ", addr)
+            sender=name
+
+        #print("its name is ", sender)
+        self.printers[sender] = writer
+        # connexion lost count
+        count=0
+
+        # receiving loop
+        while request != MSG_QUIT_TCP and self.nUDP.alive and count<3:
+            try :
+                request = self.decode(await asyncio.wait_for(reader.readuntil(TERMtcp), timeout=TIMEOUT))  # is it working
+                if request.isspace():
+                    count+=1
+                    continue
+            except :
+                continue
+
+            #request = self.decode(await reader.read(255))
+
+            #print("request |",request,"|      received from ",sender)
+
+            try:
+                self.nUDP.funcRecep(request, sender)
+                count=0
+            except:
+                count+=1
+        #print("connection stopped with ", sender)
+        self.nUDP._host_has_left(sender)
+
+
+    def format(self, ins):
+        return (ins).encode('utf8') + TERMtcp
+
+    def decode(self, ins):
+        return ins.decode('utf8').replace(TERM,"")
+
+
+    def remove_tcp_printer(self, name):
+        self.printers[name].write(self.format(MSG_QUIT_TCP))
+        del self.printers[name]
+
+
+
+    async def tcpSendAS(self, name, message):
+        #print("sending ", message, "    to ", name)
+        self.printers[name].write(self.format(message))
+        await self.printers[name].drain()
+
+    async def add_tcp_printer(self, addr, name):
+        reader, writer = await asyncio.open_connection(addr, tcpPortServer)
+        self.printers[name] = writer
+        asyncio.ensure_future(self.handle_client(reader, writer, name=name))
+        writer.write(self.format(self.nUDP.name))
+        await writer.drain()
+
+    async def closeProperly(self):
+        for key, value in self.printers.items():
+
+            value.write(self.format(MSG_QUIT_TCP))
+
+        self.server.close()
+        await self.server.wait_closed()
+        await self.loop.shutdown_asyncgens()
+
+
+
+    ####### functions called from outside
+
+    def add_printer_from_outside(self, addr, name):
+        """
+        Add tcp printer (helper method for add_tcp_printer)
+        :param addr: addr of remote host
+        :param name: name of remote host
+        :return:
+        """
+        asyncio.run_coroutine_threadsafe(self.add_tcp_printer(addr, name),self.loop)
+
+    def tcpSend_from_outside(self, name, message):
+        """
+        Send message (helper method for tcpSendAS)
+        :param name: host's name
+        :param message: message to be sent
+        :return:
+        """
+        asyncio.run_coroutine_threadsafe(self.tcpSendAS(name,message),self.loop)
+
+    def closeProperly_from_outside(self):
+
+        future=asyncio.run_coroutine_threadsafe(self.closeProperly(), self.loop)
+        return future.result()
+
+
+
+#############################################################################
+#######################  end of TCP section  ################################
+#############################################################################
+
 
 
 class RemoteInfo:
@@ -36,7 +192,6 @@ class RemoteInfo:
         self.name = name
         self.address = address
         self.lastSeen = time.time()
-
 
 class Singleton(type):
     """
@@ -64,8 +219,7 @@ class Singleton(type):
         """
         Singleton._memo.pop(cls, None)
 
-
-class _ListenAndAdvertLoopThread(threading.Thread):
+class _UDPNetwork(threading.Thread):
     """
     listening thread
     """
@@ -92,6 +246,12 @@ class _ListenAndAdvertLoopThread(threading.Thread):
         self.nUDP._sendMSG(self.nUDP.name, kind=MSG_HELLO)
         time.sleep(0.002)
         self.nUDP._sendMSG(self.nUDP.name, kind=MSG_ALIVE)
+
+
+        #start tcp server and wait
+
+
+        # loop udp advertizing and multicast
 
         while self.nUDP.alive:
             # Data waits on socket buffer until we retrieve it.
@@ -159,17 +319,18 @@ class _ListenAndAdvertLoopThread(threading.Thread):
         self.nUDP.my_sendSocket.close()
         self.nUDP.my_recvsocket.close()
 
+
     def _checkStillALIVE(self):
         toKill = []
         tim = time.time()
         for name in self.nUDP.remoteDevices.keys():
             lastSeen = self.nUDP.remoteDevices[name].lastSeen
 
-            if (tim - lastSeen) > ANNOUNCE_ALIVE_DELAY * 2.1:
+            if (tim - lastSeen) > ANNOUNCE_ALIVE_DELAY * 3.1:
                 self.nUDP._sendMSG(self.nUDP.name,MSG_HRU,dest=name)
 
 
-            if (tim - lastSeen) > ANNOUNCE_ALIVE_DELAY * 4.1:  # can miss up to 4 alive messages before warning
+            if (tim - lastSeen) > ANNOUNCE_ALIVE_DELAY * 5.1:  # can miss up to 5 alive messages before warning
                 toKill.append(name)
 
         changes = False
@@ -180,9 +341,9 @@ class _ListenAndAdvertLoopThread(threading.Thread):
             self.nUDP.funcHostsUpdate(self.nUDP.remoteDevices)
 
     def _dealWithALIVE(self, nameOfRemote, address,first=False):
-
         if nameOfRemote not in self.nUDP.remoteDevices or first:
             self.nUDP.remoteDevices[nameOfRemote] = RemoteInfo(name=nameOfRemote, address=address)
+
             self.nUDP.funcHostsUpdate(self.nUDP.remoteDevices) # advert the user with the function he has provided (default func just print remotes names)
 
             # we then announce to him if its not us :
@@ -190,6 +351,11 @@ class _ListenAndAdvertLoopThread(threading.Thread):
                 self.nUDP._sendMSG(self.nUDP.name,MSG_ALIVE,dest=nameOfRemote)
                 time.sleep(0.001) # resend the message might be safer
                 self.nUDP._sendMSG(self.nUDP.name, MSG_ALIVE, dest=nameOfRemote)
+
+            if nameOfRemote >self.nUDP.name :
+                # because of the > opp, there is only one tcp conection between two host
+
+                self.nUDP.tcp.add_printer_from_outside(address[0],nameOfRemote)
 
         else:
             self.nUDP.remoteDevices[nameOfRemote].lastSeen = time.time()
@@ -229,7 +395,7 @@ class NetworkUDP(metaclass=Singleton):
     Main class of the project used to deal with network communications.
     """
 
-    def __init__(self, name=None, multicast_ip=MULTICAST_ADDR, port=3234, fr=_defaultRecep, fhu=_defaultHostUpdate):
+    def __init__(self, name=None, multicast_ip=MULTICAST_ADDR, port=udpPort, fr=_defaultRecep, fhu=_defaultHostUpdate):
 
         """
         This class can only be instanciated once, any attempts to re-instanciate it will provide the same object (singleton patern)
@@ -266,10 +432,19 @@ class NetworkUDP(metaclass=Singleton):
         self.my_sendSocket = self._create_socket(multicast_ip, port + 1)
         self.my_recvsocket = self._create_socket(multicast_ip, port)
 
-        # this thread is started right after being created
-        self.llt = _ListenAndAdvertLoopThread(self)
+        # these threads are started right after being created
+        self.tcp = _TCPNetwork(self)
+        while(not self.tcp.loopCreated):
+            time.sleep(0.001)
+        self.llt = _UDPNetwork(self)
+
 
     ####### internal methods #######
+    def _host_has_left(self,name):
+        if name in self.remoteDevices:
+            del self.remoteDevices[name]
+            self.funcHostsUpdate(self.remoteDevices)
+
     def _create_socket(self, multicast_ip, port):
         """
         Creates a socket, sets the necessary options on it, then binds it. The socket is then returned for use.
@@ -278,7 +453,7 @@ class NetworkUDP(metaclass=Singleton):
 
         # create a UDP socket
         my_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        my_socket.settimeout(0.5)  # wait no more than half second
+        my_socket.settimeout(TIMEOUT)  # wait no more than half second
 
         # allow reuse of addresses
         my_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -390,8 +565,15 @@ class NetworkUDP(metaclass=Singleton):
         :param confirm: if set to True, a confirmation is waited to ensure this message has been correctly received. Do not work with DEST_ALL, This function is then blocking
         :return: true if all receivers are known host, else false
         """
-        return self._sendMSG(msg,MSG_USER,dest)
 
+        if not dest == DEST_ALL:
+            # message not targeting all dest are send via TCP (and thus, without multicast)
+            if not isinstance(dest, list):
+                dest = [dest]
+            for d in dest:
+                self.tcp.tcpSend_from_outside(d, msg)
+        else :
+            return self._sendMSG(msg,MSG_USER,dest)
 
 
     def leaveNetwork(self):
@@ -401,10 +583,15 @@ class NetworkUDP(metaclass=Singleton):
         :return: nothing
         """
 
+
         self._sendMSG(self.name, MSG_LEAVING, DEST_ALL)
         self._drop_multicast_membership(self.my_sendSocket, self.multicast_ip)
         self._drop_multicast_membership(self.my_recvsocket, self.multicast_ip)
         self.alive = False
+        self.tcp.closeProperly_from_outside()
+
+
+
         Singleton.empty(NetworkUDP)
 
 
