@@ -1,10 +1,11 @@
 __author__ = 'mbrebion'
 
 from config import radios, entries
-import system
+from libraries import system
 from libraries.mpcHelper import MpcHelper
 from config import kind # dangerous, to be deleted# dangerous, to be deleted
-from libraries.constants import BIG,SMALL
+from libraries.constants import BIG
+from threading import Thread
 
 
 #######################################
@@ -105,7 +106,7 @@ class SubSetting(SubMenu):
     this class defines a special kind of submenu dedicated to change settings
     these submenus can just be shown and not entered : they must display their attribute and can be modified with the volume rotary encoder
     """
-    def __init__(self,parent,name,hint,default="ndef",saved=False):
+    def __init__(self,parent,name,hint,default="ndef",saved=False,update=True):
         """
 
         :param parent: parent subsetting menu
@@ -119,7 +120,7 @@ class SubSetting(SubMenu):
 
         if saved:
             try :
-                self.property=system.getDataFromShelf(name)
+                self.property= system.getDataFromShelf(name)
             except :
                 self.property=default # to be overriden
                 system.putToShelf(name, self.property)
@@ -131,7 +132,8 @@ class SubSetting(SubMenu):
         self.actionTagTwo=hint
         self.kind="setting"
         self.selectable=False
-        self.update(0)
+        if update:
+            self.update(0)
 
     def onShowed(self):
         self.update(0)
@@ -152,14 +154,15 @@ class SubSetting(SubMenu):
         self._modifyProperty(dec)
         out=self._showProperty()
 
-        if kind==BIG:
+        if kind == BIG:
             self.name= self.hint
-            self.parent.actionTagTwo= out
+            self.parent.actionTagTwo = out
+
         else :
             self.name= self.trueName +" : "+  out
 
         if self.saved:
-            system.putToShelf(self.trueName,self.property)
+            system.putToShelf(self.trueName, self.property)
 
         self.getAncestorMenu().askRefreshFromOutside()
 
@@ -242,17 +245,18 @@ class Menu(SubMenu):
             self.currentSub._previous()
 
     def askRefreshFromOutside(self):
-        self.currentSub.askRefresh=True
+        self.askRefresh=True
 
     def requireRefresh(self):
         out = False
-        if self.currentSub.askRefresh :
+        if self.askRefresh :
             out = True
-            self.currentSub.askRefresh = False
+            self.askRefresh = False
         return out
 
     def info(self):
         # function use to provide output text
+        # menu, choice, choiceTwo
         if self.currentSub.explorable():
             return self.currentSub.name,self.currentSub.list[self.currentSub.count].name,self.currentSub.actionTagTwo
         else :
@@ -305,6 +309,14 @@ class Alarm(SubMenu):
     def __init__(self,parent,name="Reveil"):
         SubMenu.__init__(self,parent,name)
         self.items=[]
+
+        # looking for a saved alarm
+
+        alarm=system.getDataFromShelf("alarm")
+        if alarm != "":
+            hour,minute=alarm.split(":")
+            self.items.append(AlarmItem(self,hour,minute))
+
 
     def getActiveAlarms(self):
         out=[]
@@ -389,13 +401,15 @@ class TimeMinute(SubSetting):
 
 class AlarmItem(SubSetting):
     def __init__(self,parent,hour,minute,name="a"):
+
         self.enable = True
         self.hour=hour
         self.minute=minute
         self.reseted=True
         self.toDelete=False
 
-        SubSetting.__init__(self,parent,name,"",0,False)
+        system.putToShelf("alarm",str(hour)+":"+str(minute))
+        SubSetting.__init__(self,parent,name," activer ? ",0,False,True)
 
 
     def _showProperty(self):
@@ -403,20 +417,31 @@ class AlarmItem(SubSetting):
             out="oui"
         else :
             out="non"
-        return   str(self.hour).zfill(2)+":"+str(self.minute).zfill(2)+" " + out
+        result=str(self.hour).zfill(2)+":"+str(self.minute).zfill(2)+" " + out
+
+        return  result
 
     def _modifyProperty(self, dec):
         if dec !=0:
             self.enable = not self.enable
+            if self.enable:
+                system.putToShelf("alarm", str(self.hour) + ":" + str(self.minute))
+            else:
+                system.putToShelf("alarm", "")
+
+
 
     def onSelected(self):
         if not self.toDelete :
             self.name="supprimer ?"
             self.getAncestorMenu().askRefreshFromOutside()
             self.toDelete=True
+
         else:
+            system.putToShelf("alarm", "")
             self.parent.removeItem(self)
             self.parent.populate()
+            self.parent.actionTagTwo=""
             self.getAncestorMenu().askRefreshFromOutside()
         return False
 
@@ -460,7 +485,7 @@ class Artist(SubMenu):
         self.populate()
 
     def populate(self):
-        output = system.startReturnCommand("/usr/bin/mpc list Album AlbumArtist \""+self.name+"\"")
+        output = system.startReturnCommand("/usr/bin/mpc list Album AlbumArtist \"" + self.name + "\"")
         allAlbums=output[0:-1] # this contains all artist which released at least an album !
         self.clearEntries()
         for name in allAlbums:
@@ -507,7 +532,7 @@ class Album(SubMenu):
         # mpc helper is also started
 
         if self.loaded==False :
-            system.startCommand("mpc clear")
+            system.mpcClear()
             cmd="mpc search Album  \""+self.name+"\" albumartist \""+ self.parent.name+ "\" | mpc add"
             system.startCommand(cmd)
             self.loaded=True
@@ -515,26 +540,26 @@ class Album(SubMenu):
 
 
         if self.play:
-            system.startCommand("mpc pause")
+            system.mpcPause()
             self.mpcH.updateView()
             self.play=False
         else :
-            system.startCommand("mpc play")
+            system.mpcPlay()
             self.mpcH.updateView()
             self.play = True
 
 
     def _next(self):
-        system.startCommand("mpc next")
+        system.mpcNext()
         self.mpcH.updateView()
 
     def _previous(self):
-        system.startCommand("mpc prev")
+        system.mpcPrevious()
         self.mpcH.updateView()
 
     def _back(self):
-        system.startCommand("mpc stop")
-        system.startCommand("mpc clear")
+        system.mpcStop()
+        system.mpcClear()
         self.play=False
         self.loaded=False
         self.killHelper()
@@ -577,9 +602,9 @@ class Radio(SubMenu):
     def onShowed(self):
         SubMenu.onShowed(self)
 
-        system.startCommand("mpc clear")
-        system.startCommand("mpc add \""+self.webAddr+"\"" )
-        system.startCommand("mpc play")
+        system.mpcClear()
+        system.startCommand("mpc add \"" + self.webAddr + "\"")
+        system.mpcPlay()
 
 
 #######################################
@@ -622,7 +647,7 @@ class MPDVolume(SubSetting):
 
     def _modifyProperty(self,dec):
         self.property = max(min(100,self.property+dec),0) # new sound is targeted
-        system.startCommand("mpc volume "+str(self.property)) # action is taken
+        system.mpcVolume(self.property)
 
 
 class SettingsWL(SubMenu):
@@ -633,7 +658,7 @@ class SettingsWL(SubMenu):
 
 class WifiOn(SubSetting):
     def __init__(self,parent,name="Wifi", hint="Wifi"):
-        SubSetting.__init__(self,parent,name,hint,True,True)
+        SubSetting.__init__(self,parent,name,hint,True,True,update=False)
 
     def _showProperty(self):
         if self.property:
@@ -647,7 +672,7 @@ class WifiOn(SubSetting):
             self.property = not self.property
 
         if self.property:
-            system.restartWifi()
+            system.restartWifi(self.getAncestorMenu().os.io)
         else :
             system.shutdownWifi()
 
@@ -681,18 +706,26 @@ class CD(SubMenu):
         self.oldTitle="nope"
         self.artist=""
 
+    def onShowed(self):
+        t = Thread(target=self.getAncestorMenu().os.io.dealWithCD)
+        print("thread deal with cd started")
+        t.start() # this might take time
+
+
     def update(self):
         if self.title==self.oldTitle:
             return
 
         self.oldTitle=self.title
         self.clearEntries()
+
         if self.getAncestorMenu().os.cdInside==True:
             self.addEntry(CDPlayer(self,name="Lecture "))
             self.addEntry(Eject(self))
 
             if not self.inDB:
                 self.addEntry(Rip(self))
+
             self.name="Lecteur CD"
             self.actionTagTwo=self.title
             self.selectable=True
@@ -732,7 +765,7 @@ class Eject(SubMenu):
         self.getAncestorMenu()
         self.getAncestorMenu().askRefreshFromOutside()
         system.startCommand("sudo eject &")
-        self.getAncestorMenu().os.cdInside=False
+        self.getAncestorMenu().os.setCDInside(False)
 
 
 class CDPlayer(SubMenu):
@@ -743,7 +776,7 @@ class CDPlayer(SubMenu):
 
 
     def _back(self):
-        system.startCommand("mpc clear")
+        system.mpcClear()
         self.loaded=False
         self.play=False
         self.killHelper()
@@ -764,29 +797,29 @@ class CDPlayer(SubMenu):
         SubMenu.onSelected(self)
 
         if self.loaded==False :
-            system.startCommand("mpc clear")
+            system.mpcClear()
             for i in range(len(self.parent.tracks)):
-                system.startCommand("mpc add cdda:///"+str(i+1))
+                system.startCommand("mpc add cdda:///" + str(i + 1))
 
             self.loaded=True
             self.resetHelper()
 
         if self.play==False:
-            system.startCommand("mpc play")
+            system.mpcPlay()
             self.mpcH.updateView()
         else:
-            system.startCommand("mpc pause")
+            system.mpcPause()
             self.mpcH.updateView()
 
         self.play = not self.play
 
 
     def _next(self):
-        system.startCommand("mpc next")
+        system.mpcNext()
         self.mpcH.updateView()
 
     def _previous(self):
-        system.startCommand("mpc prev")
+        system.mpcPrevious()
         self.mpcH.updateView()
 
 

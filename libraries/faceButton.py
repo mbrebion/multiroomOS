@@ -13,9 +13,9 @@ class FaceButton(object):
         self.id=id
         self.butLock = threading.Lock()
 
-        GPIO.add_event_detect(self.port, GPIO.RISING, callback=self.eventRise,bouncetime=300)
 
-
+    def startDetect(self):
+        GPIO.add_event_detect(self.port, GPIO.RISING, callback=self.eventRise, bouncetime=300)
 
     def eventRise(self,value):
         with self.butLock:

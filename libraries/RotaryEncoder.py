@@ -2,6 +2,8 @@ __author__ = 'maxence'
 
 from RPi import GPIO
 import threading
+from threading import Timer
+import time
 
 
 class RotaryEncoder(object):
@@ -26,6 +28,7 @@ class RotaryEncoder(object):
         self.name=name
         self.rotLock = threading.Lock()
         self.butLock = threading.Lock()
+        self.lastTime=time.time()-10
 
 
         # detection improvement
@@ -42,54 +45,28 @@ class RotaryEncoder(object):
         GPIO.setup(self.switch, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
         self.updateState()
+        t = Timer(4.0, self.startDetect)
+        t.start()
 
-        #self.current_A = 1
-        #self.current_B = 1
 
-        # add callback event
-        #GPIO.add_event_detect(self.clk, GPIO.RISING, callback=self.rotary_interrupt)  # NO bouncetime
-        #GPIO.add_event_detect(self.dt, GPIO.RISING, callback=self.rotary_interrupt)
-
-        GPIO.add_event_detect(self.clk, GPIO.BOTH, callback=self.rotaryCallState,bouncetime=1) # bouncing has been removed and it seems to work well
+    def startDetect(self):
+        GPIO.add_event_detect(self.clk, GPIO.BOTH, callback=self.rotaryCallState,bouncetime=1)
         GPIO.add_event_detect(self.dt, GPIO.BOTH, callback=self.rotaryCallState,bouncetime=1)
         GPIO.add_event_detect(self.switch, GPIO.BOTH, callback=self.switchCall,bouncetime=300)
-
         # a test on the rotary showed that bouncetime did not exceded 10 \mu s
         # a value of 1ms is therefore safe
 
+
     def switchCall(self,channel):
         if GPIO.input(self.switch) == 0:
-            self.rotLock.acquire()
-            self.hasBeenSwitchedOn = True
-            self.rotLock.release()
-
-    def rotary_interrupt(self,A_or_B):
-        """
-        deprecated : half turns are missed
-        :param A_or_B:
-        :return:
-        """
-        # read both of the switches
-        Switch_A = GPIO.input(self.clk)
-        Switch_B = GPIO.input(self.dt)
-        # now check if state of A or B has changed
-        # if not that means that bouncing caused it
-        if self.current_A == Switch_A and self.current_B == Switch_B:  # Same interrupt as before (Bouncing)?
-            return  # ignore interrupt!
-
-        self.current_A = Switch_A  # remember new state
-        self.current_B = Switch_B  # for next bouncing check
-
-        if (Switch_A and Switch_B):  # Both one active? Yes -> end of sequence
-            if A_or_B == self.dt:  # Turning direction depends on
-                self.countPP(+1)
-            else:  # so depending on direction either
-                self.countPP(-1)
+            with self.butLock:
+                self.hasBeenSwitchedOn = True
 
 
 
     def rotaryCallState(self,chanel):
         state=GPIO.input(chanel)
+        self.lastTime=time.time()
 
         if chanel==self.clk:
             target=self.clk
@@ -99,7 +76,6 @@ class RotaryEncoder(object):
             index=1
 
         if self.current[index]==state : # wrong hit : already in this state
-            #print("wrong hit : " + str(index) +" : "+str(state) )
             return
 
         self.last=self.current
@@ -126,7 +102,9 @@ class RotaryEncoder(object):
             self.counts+=p
 
     def updateState(self):
-        self.current = [GPIO.input(self.clk), GPIO.input(self.dt), 0]  # current state
+        if time.time()-self.lastTime>2:
+            #only update after rotaries are not used
+            self.current = [GPIO.input(self.clk), GPIO.input(self.dt), 0]  # current state
 
     def getDec(self):
         with self.rotLock:

@@ -2,11 +2,11 @@ __author__ = 'mbrebion'
 
 import time
 import threading
-from system import startReturnCommand
+from libraries.system import startReturnCommand
 
 class MpcHelper(threading.Thread):
 
-    exist=False
+    exist = False
 
     def __init__(self,subMenu,tracks=[]):
         threading.Thread.__init__(self)
@@ -21,6 +21,7 @@ class MpcHelper(threading.Thread):
 
         self.sm = subMenu
         MpcHelper.exist = True
+        print("thread mpc helper started")
         self.start()
 
 
@@ -67,5 +68,5 @@ class MpcHelper(threading.Thread):
     def run(self):
         while(self.alive):
             self.updateView()
-            time.sleep(0.2)
+            time.sleep(0.3)
         MpcHelper.exist = False

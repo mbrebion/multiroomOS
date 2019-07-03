@@ -12,13 +12,16 @@ MSG_BACK="prev"
 MSG_SHUTDOWN="sd"
 MSG_BUTTON="button"
 
+MSG_ASK="ask"
 MSG_PRINT="print"
 MSG_ORDER="order"
 MSG_REFRESH="refresh"
 MSG_SUBSCRIBE="subscribe"
 MSG_UNSUBSCRIBE="unsubscribe"
 
-
+ASK_ISPLAYING="askIsplaying"
+ASW_TRUE="TRUE"
+ASW_FALSE="FALSE"
 
 MODE_LOCAL="local"
 MODE_BTSTREAM="btStream"
@@ -35,3 +38,8 @@ CLIENT_MAIN="mainPlayer"
 ORDER_SSYNC=25 # start syncing
 ORDER_SSTOP=26 # stop syncing
 ORDER_STOP=27 # stop music on device
+ORDER_STARTEMIT = 28 # start emmiting music to snapserver
+
+
+la=chr(127)
+ra=chr(126)

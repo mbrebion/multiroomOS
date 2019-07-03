@@ -3,13 +3,20 @@ __author__ = 'mbrebion'
 
 from config import name
 import signal
-from io_mr import Io
+from io_mr import Io,sep
 from menu import Menu
-import system
-from libraries.constants import MSG_BUTTON,MSG_BACK,MSG_MENU,MSG_SELECT,MSG_VOL,MSG_ORDER,MSG_REFRESH,MSG_SUBSCRIBE,MSG_UNSUBSCRIBE
-from libraries.constants import MODE_BTSTREAM,MODE_LOCAL,MODE_SNAPSTREAM_IN,ORDER_SSTOP,ORDER_STOP,ORDER_SSYNC,MODE_SNAPSTREAM_OUT
+from libraries import system
+import datetime,pytz
+import time
+from libraries.constants import MSG_BUTTON,MSG_BACK,MSG_MENU,MSG_SELECT,MSG_VOL,MSG_ORDER,MSG_REFRESH,MSG_SUBSCRIBE,MSG_UNSUBSCRIBE,ASK_ISPLAYING,ASW_FALSE,ASW_TRUE
+from libraries.constants import MODE_BTSTREAM,MODE_LOCAL,MODE_SNAPSTREAM_IN,ORDER_SSTOP,ORDER_STOP,ORDER_SSYNC,MODE_SNAPSTREAM_OUT,ORDER_STARTEMIT,MSG_ASK
 from threading import Lock
 from uuid import getnode as get_mac
+import random
+
+
+shutdown=False
+tz=pytz.timezone('Europe/Paris')
 
 class Os(object):
 
@@ -19,6 +26,7 @@ class Os(object):
         self.lastOrder=0
         self.lock=Lock()
         self.cdInside=False
+        self.minuteStop=random.randint(1,29)
         mac = get_mac()
         self.macAdrr=':'.join(("%012x" % mac)[i:i+2] for i in range(0, 12, 2))
 
@@ -30,36 +38,70 @@ class Os(object):
         self.io = Io(self)
         self.initMPD()
 
-
     def run(self):
+        self.markTime()
+        self.markFirstTime()
+
         self.io.mainLoop() # main os loop
 
+    def setCDInside(self,bool):
+        if bool!=self.cdInside:
+            self.cdInside=bool
+            self.updateView()
 
     def initMPD(self):
 
-
         system.switchToLocalOutput()
-        system.startCommand("mpc clear")  # clear last mpd playlist
-        system.startCommand("mpc stop")
+
         try:
             self.volume = system.getDataFromShelf("MPDVolume")
-            print("found volume " ,self.volume)
+            system.logDebug("found volume ", self.volume)
         except:
-            self.volume=85
-            print("default volume ", self.volume)
+            self.volume = 85
+            system.logDebug("default volume ", self.volume)
 
         self.changeMode(MODE_LOCAL)
         system.startCommand("mpc update")
+        system.startCommand("mpc clear")  # clear last mpd playlist
+        system.startCommand("mpc stop")
+
+    def markFirstTime(self):
+        self.firstTime = time.time()
+
+    def markTime(self):
+        self.lastActionTime = time.time()
+
+    def ellapsedTimeSinceLastAction(self):
+        return time.time()-self.lastActionTime
+
+    def ellapsedTotalTime(self):
+        return time.time()-self.firstTime
+
+    def considerStoppingRebooting(self):
+        now = datetime.datetime.now(tz=tz)
+        restartTimes=[17]
+        minimalInactivity=0 # half an hour
+        minimalOperationalTime=90
+
+        if self.ellapsedTimeSinceLastAction()<minimalInactivity or self.ellapsedTotalTime() < minimalOperationalTime or system.isMPDPlaying() or self.mode==MODE_SNAPSTREAM_IN:
+            return
+
+        for time in restartTimes:
+            if now.hour == time and now.minute>= 42+ 0*self.minuteStop  :
+                print("exiting at ",now.hour,":",now.minute)
+                self._safeStop()
 
     def takeAction(self, action, value, source=name):
         """
-        can be called by different means (and threads)
-        :param action: kind of action to take
-        :param value: parameter associated with the action asked
-        :param source: remote which sent the order
-        :return: nothing
-        """
+    can be called by different means (and threads)
+    :param action: kind of action to take
+    :param value: parameter associated with the action asked
+    :param source: remote which sent the order
+    :return: nothing
+    """
         with self.lock:
+
+            self.markTime()
             self.io.askBacklight()
 
             if action == MSG_VOL:
@@ -97,25 +139,69 @@ class Os(object):
         :param source: the remote which sent the order
         :return: nothing
         """
+
+        self.markTime()
+        if value == ORDER_STARTEMIT:
+            if self.mode==MODE_LOCAL:
+                system.logDebug("asked to start streaming music")
+                self.startOutputtingToSnapCast()
+            return
+
+
         if value == ORDER_SSYNC:
-            system.startSnapClient()
-            self.streamSource=source
-            self.io.sendMessageTo(MSG_SUBSCRIBE+","+str(0),source)
-            self.changeMode(MODE_SNAPSTREAM_IN)
+            if self.mode==MODE_LOCAL:
+                self.startListeningToSnapCast(source)
             return
 
         if value == ORDER_SSTOP:
-            system.stopSnapClient()
-            self.streamSource = None
-            self.io.sendMessageTo(MSG_UNSUBSCRIBE + "," + str(0),source)
-            self.changeMode(MODE_LOCAL)
+            if self.mode==MODE_SNAPSTREAM_IN:
+                self.stopListeningToSnapCast()
             return
 
         if value == ORDER_STOP:
-            self.askBack(1) # we can maybe do better no ?
+            if self.mode==MODE_SNAPSTREAM_OUT:
+                system.logDebug("       asked to stop streaming")
+                self.stopOutputtingToSnapCast()
 
-    def askButtonAction(self,value):
-        if self.mode==MODE_LOCAL or MODE_SNAPSTREAM_OUT:
+            if self.mode==MODE_SNAPSTREAM_IN:
+                system.logDebug("       asked to stop listening")
+                self.stopListeningToSnapCast()
+
+            if system.isMPDPlaying():
+                self.askBack(1) # we can maybe do better no ?
+
+    def stopListeningToSnapCast(self):
+        system.stopSnapClient()
+        self.io.sendMessageTo(MSG_UNSUBSCRIBE + sep + str(0), self.streamSource)
+        self.streamSource = None
+        self.changeMode(MODE_LOCAL)
+
+    def startListeningToSnapCast(self, source):
+        system.mpcStop()
+        system.startSnapClient()
+        self.streamSource = source
+        self.io.sendMessageTo(MSG_SUBSCRIBE + sep + str(0), source)
+        self.changeMode(MODE_SNAPSTREAM_IN)
+
+    def stopOutputtingToSnapCast(self):
+        self.io.sendMessageToAll(MSG_ORDER + sep + str(ORDER_SSTOP));
+        self.lastOrder = ORDER_SSTOP
+        self.streamSource = None
+        system.stopSnapClient()
+        system.switchToLocalOutput()
+        self.changeMode(MODE_LOCAL)
+
+    def startOutputtingToSnapCast(self):
+        system.switchToSnapCastOutput()
+        system.startSnapClient()
+        self.io.sendMessageToAll(MSG_ORDER + sep + str(ORDER_SSYNC));
+        self.lastOrder = ORDER_SSYNC
+        self.streamSource = name
+        self.changeMode(MODE_SNAPSTREAM_OUT)
+
+    def askButtonAction(self, value):
+        if self.mode == MODE_LOCAL or MODE_SNAPSTREAM_OUT:
+            system.logDebug("ask button called : ", value)
 
             if value == 1:
                 """
@@ -123,29 +209,49 @@ class Os(object):
                 """
 
                 if self.mode == MODE_LOCAL:
-                    system.switchToSnapCastOutput()
-                    system.startSnapClient()
-                    self.io.sendMessageToAll(MSG_ORDER+","+str(ORDER_SSYNC));
-                    self.lastOrder=ORDER_SSYNC
-                    self.streamSource=name
-                    self.changeMode(MODE_SNAPSTREAM_OUT)
+                    #
+                    if system.isMPDPlaying():
+                        # if local music is played
+                        self.startOutputtingToSnapCast()
+                    else:
+                        # if no local music is played, we check wether other remotes play music
+                        dest = []
+                        for d in self.io.remoteNames:
+                            if "local" not in d:
+                                # this prevent remotes controls with name in xxx.local
+                                dest.append(d)
+
+                        for remote, answer in self.io.askMessageTo(MSG_ASK + sep + ASK_ISPLAYING, dest).items():
+
+                            if answer == ASW_TRUE:
+                                # we sync to the first remote which plays music
+                                system.logDebug("starting listening to " + remote)
+                                self.io.sendMessageTo(MSG_ORDER + sep + str(ORDER_STARTEMIT), remote);
+                                self.startListeningToSnapCast(remote)
+                                break
+
+                        system.logDebug("")
 
                 elif self.mode == MODE_SNAPSTREAM_OUT:
-                    self.io.sendMessageToAll(MSG_ORDER+","+str(ORDER_SSTOP));
-                    self.lastOrder=ORDER_SSTOP
-                    system.stopSnapClient()
-                    system.switchToLocalOutput()
-                    self.changeMode(MODE_LOCAL)
+                    self.stopOutputtingToSnapCast()
+
+                elif self.mode == MODE_SNAPSTREAM_IN:
+                    self.stopListeningToSnapCast()
 
             elif value == 2:
-                # mute other devices
-                self.io.sendMessageToAll(MSG_ORDER + "," + str(ORDER_STOP));
+                # mute other devices and stop snapcast if needed
+                self.io.sendMessageToAll(MSG_ORDER + sep + str(ORDER_STOP));
 
             elif value == 3:
                 self.menu.forceRadio()
 
             elif value == 4:
-                pass
+                global shutdown
+
+                if shutdown :
+                    self.io.goOn = False
+
+                shutdown = True
 
     def askRefresh(self,value):
         """
@@ -162,7 +268,7 @@ class Os(object):
             else :
                 self.menu.previous(dec)
         if self.mode==MODE_SNAPSTREAM_IN:
-            self.io.nUDP.sendMSG(MSG_MENU + "," + str(dec), dest=self.streamSource)
+            self.io.sendMessageTo(MSG_MENU +sep + str(dec), self.streamSource)
 
         self.menu.askRefreshFromOutside()
 
@@ -173,7 +279,7 @@ class Os(object):
             self.menu.askRefreshFromOutside()
 
         if self.mode==MODE_SNAPSTREAM_IN:
-            self.io.nUDP.sendMSG(MSG_SELECT + "," + str(0), dest=self.streamSource)
+            self.io.sendMSGto(MSG_SELECT + sep + str(0), self.streamSource)
 
     def askBack(self,value):
 
@@ -184,10 +290,7 @@ class Os(object):
             self.menu.back()
 
         if self.mode==MODE_SNAPSTREAM_IN:
-            system.stopSnapClient()
-            self.io.sendMessageTo(MSG_UNSUBSCRIBE + "," + str(0), self.streamSource)
-            self.streamSource = None
-            self.changeMode(MODE_LOCAL)
+            self.io.sendMessageTo(MSG_BACK + sep + str(0), self.streamSource)
 
             # must be done automatically as it is the case for bt ; we can check for the existence of a snapclient alive for instance
             #TODO : we must advertize the device which broadcast so that if there is no more listener, it can stop broadcasting
@@ -228,13 +331,13 @@ class Os(object):
         """
         if self.mode == MODE_SNAPSTREAM_IN or self.mode == MODE_SNAPSTREAM_OUT:
             # it means that we are streaming or receiving stream
-            system.startCommand("mpc volume 100")
+            system.mpcVolume(100)
             # in this case, mpd is put at max and we thus modify snapclient volume with the following awfull bash script
             realVol=self.mpcToSnapVolumConvert(self.volume)
-            system.startCommand("bash /home/pi/os/scripts/setSnapVolume.sh " + self.macAdrr +" " + self.streamSource + " " + str(realVol))   ############### te be changed !!! it is not only piMain who streams
+            system.startCommand("bash /home/pi/os/scripts/setSnapVolume.sh " + self.macAdrr + " " + self.streamSource + " " + str(realVol))   ############### te be changed !!! it is not only piMain who streams
         else:
             # here, we directly modify mpd volume
-            system.startCommand("mpc volume " + str(self.volume))
+            system.mpcVolume(self.volume)
 
     def mpcToSnapVolumConvert(self,volIn):
         """
@@ -251,9 +354,6 @@ class Os(object):
         :return:
         """
         return 100*(volIn/100)**1.68
-
-
-######## - ######
 
     def updateView(self):
         """
@@ -275,35 +375,31 @@ class Os(object):
         if self.mode==MODE_LOCAL or self.mode==MODE_SNAPSTREAM_OUT:
             menu,choice,choiceTwo = self.menu.info()
 
-            if menu!="":
-                if self.mode==MODE_SNAPSTREAM_OUT:
-                    self.io.writeText("* "+menu,1)
-                else:
-                    self.io.writeText(menu,1)
-            if choice!="":
-                self.io.writeText(choice,2)
-            if choice!="":
-                self.io.writeText(choiceTwo,3)
+
+            if self.mode==MODE_SNAPSTREAM_OUT:
+                self.io.writeText("^ "+menu,1)
+            else:
+                self.io.writeText(menu,1)
+
+            self.io.writeText(choice,2)
+            self.io.writeText(choiceTwo,3)
             return
-
-
 
     def refreshView(self):
         """
-        refresh the view if any changes has occurred with mpd
+        refresh the view if any changes has occurred
         :return: nothing
         """
         if self.menu.requireRefresh():
             self.updateView()
-
+            return True
+        return False
 
     def changeMode(self, newMode):
         self.mode=newMode
         self.menu.askRefreshFromOutside()
         self.io.askBacklight()
         self.askNewVolume(0) # update volume (mpd/snapclient)
-
-
 
     def dealWithBluetoothCon(self):
         """
@@ -326,28 +422,33 @@ class Os(object):
                 self.changeMode(MODE_LOCAL)
                 try :
                     if system.getDataFromShelf("WifiAuto"):
-                        system.restartWifi()
+                        system.restartWifi(self.io)
                 except:
                     pass
 
-
-    def safeStop(self):
+    def _safeStop(self,shutdown=False):
+        """
+        This function should never be called directelly. The programm might be stopped by ending the main io loop : io.goOn=False
+        :param shutdown:
+        :return:
+        """
+        system.logInfo("finishing")
         self.io.writeText("Exiting", 1)
-        self.io.closeIO()
         system.startCommand("mpc stop")
         system.startCommand("mpc clear")
+        self.io.closeIO()
         system.closeShelf()
-        print("finished safely")
-
+        self.io.writeText("power off", 1)
+        system.logInfo("finished safely")
+        if shutdown:
+            system.startCommand("sudo reboot")
 
 
 ################ Launching app and dealing with sigterm, control-c
 
-
 def sigterm_handler(signal, frame):
     # save the state here or do whatever you want
-    print('kill signal received, closing nicely')
-    os.io.endLoop()
+    os.io.goOn=False
 
 signal.signal(signal.SIGTERM, sigterm_handler)
 
@@ -357,9 +458,12 @@ os = Os()
 try:
     os.run()
 except KeyboardInterrupt:
-    print("keyboard interrupt asked")
-finally:
-    os.safeStop()
+    print("received keyboard interrupt, exiting")
+    pass
+
+finally :
+    os._safeStop(shutdown)
+
 
 
 

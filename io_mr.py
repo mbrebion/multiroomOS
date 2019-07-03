@@ -7,14 +7,15 @@ from libraries.RotaryEncoder import RotaryEncoder
 from libraries.backlight import Backlight
 from libraries.faceButtons import FaceButtons
 from time import sleep,time
-from libraries.constants import MSG_BUTTON,MSG_BACK,MSG_MENU,MSG_SELECT,MSG_VOL,BIG,MSG_PRINT
+from libraries.constants import MSG_BUTTON,MSG_BACK,MSG_MENU,MSG_SELECT,MSG_VOL,BIG,MSG_PRINT,MSG_ASK,ASK_ISPLAYING,ASW_TRUE,ASW_FALSE,MODE_SNAPSTREAM_OUT
 from config import rotOne,rotTwo,entries,name,kind
 import datetime,pytz
-from system import checkCDStatus
-from threading import Lock
+from libraries.system import checkCDStatus,logDebug,logInfo,logWarning,isMPDPlaying
+from threading import Lock,enumerate
 from RPi import GPIO
 
 
+sep="?s?"
 tz=pytz.timezone('Europe/Paris')
 
 class Io(object):
@@ -43,6 +44,8 @@ class Io(object):
         self.lastChange=0
         self.delay=2
 
+        self.loopTime=0.06
+
         self.backlight=Backlight(os)
         if kind == BIG:
             self.lcdLines=4
@@ -53,30 +56,46 @@ class Io(object):
         try :
             lcd_init()
         except IOError:
-            print("no lcd screen connected")
+            logWarning("no lcd screen connected")
         self.resend=False
 
 
-        # Network
-        self.nUDP = NetworkUDP(name= name,fr=self.receivingRemoteMessage,fhu=self.updatingRemotesList)  # load network facilities (with default IP and port)
 
-        # remotesControls
-        self.remoteControls=[]
+        # Network
+        self.startNetwork()
+
+    def startNetwork(self):
+        self.nUDP=NetworkUDP(name=name, fr=self.receivingRemoteMessage,fhu=self.updatingRemotesList,fe=self.errorHandling)  # load network facilities (with default IP and port)
+        self.remoteControls = []
 
     def appendRemoteControls(self,name):
         if name not in self.remoteControls:
             self.remoteControls.append(name)
             self.askResendTexts()
-            print("remotes controls : ",self.remoteControls)
+            logInfo("remotes controls (adding)  : ",self.remoteControls)
 
     def removeRemoteControls(self,name):
         if name in self.remoteControls:
             self.remoteControls.remove(name)
-            print("remotes controls : ", self.remoteControls)
+            logInfo("remotes controls (removing) : ", self.remoteControls)
 
         if len(self.remoteControls)==0 :
             # do something when last subscriber left
             pass
+
+        stillOneActiveRemoteControls=False
+        for d in self.remoteControls:
+            if "local" not in d:
+                stillOneActiveRemoteControls=True
+        if not stillOneActiveRemoteControls:
+            # in this case there is no more active listener (i.e. using snapcast).
+            if self.os.mode==MODE_SNAPSTREAM_OUT :
+                self.os.stopOutputtingToSnapCast()
+            pass
+
+    def errorHandling(self,error):
+        logWarning("error happened in networkUDP caused by message : ", error)
+        self.os._safeStop()
 
 
     def receivingRemoteMessage(self,message,source):
@@ -86,14 +105,23 @@ class Io(object):
         :param source: the remote name who sent the message
         :return: nothing
         """
-        msg = message.split(",")
+        msg = message.split(sep)
+
         # message must be : "order,intValue"
         if msg[0] == MSG_PRINT :
             ### print messages concern io and are dealt with right here
             self.writeTextFromRemote(msg[1])
+            return
+
+        if msg[0] == MSG_ASK :
+            logDebug(" somebody ("+source+") asked "+ msg[1])
+            if msg[1]==ASK_ISPLAYING:
+                if isMPDPlaying():
+                    self.sendMessageTo(ASW_TRUE,source)
+                else:
+                    self.sendMessageTo(ASW_FALSE, source)
         else:
             self.os.takeAction(msg[0], int(msg[1]), source)
-
 
     def updatingRemotesList(self,remotes):
         """
@@ -113,21 +141,30 @@ class Io(object):
             if title not in self.remoteNames:
                 toKill.append(title)
         for title in toKill:
-            print("remove remote control : ", title)
             self.removeRemoteControls(title)
 
-        print("known hosts : ",self.remoteNames)
+        logInfo("known hosts : ",self.remoteNames)
 
     def sendMessageToAll(self, text):
         """
         This function send to message "text" to all other known remotes.
-        A remote that is not yet registeer WILL NOT receive this message
+        A remote that is not yet register WILL NOT receive this message
         :param text: the message to be sent 
         :return: nothing
         """
-        self.nUDP.sendMSG(text,dest=self.remoteNames)
 
-    def sendMessageTo(self, text,dest):
+        NetworkUDP().sendMSG(text,dest=self.remoteNames)
+
+    def askMessageTo(self, msg, dest):
+        """
+        ask question to targeted remotes devices and return answers
+        :param msg: question asked
+        :param dest: remote device or list of remote devices
+        :return: dict containing answers from devices (may contains False if remote has not answer within a TIMOUT)
+        """
+        return NetworkUDP().askDevice(msg, dest)
+
+    def sendMessageTo(self, text, dest):
         """
         This function send to message "text" to all other known remotes.
         A remote that is not yet registeer WILL NOT receive this message
@@ -135,8 +172,7 @@ class Io(object):
         :param dest: list of remotes which must receive this message
         :return: nothing
         """
-        self.nUDP.sendMSG(text,dest=dest)
-
+        NetworkUDP().sendMSG(text, dest=dest)
 
     def askBacklight(self):
         self.backlight.newCommand()
@@ -147,9 +183,9 @@ class Io(object):
 
         out=checkCDStatus()
         if out==False:
-            self.os.cdInside=False
+            self.os.setCDInside(False)
         else:
-            self.os.cdInside=True
+            self.os.setCDInside(True)
 
 
         self.os.menu.setCDInfos(out)
@@ -161,6 +197,7 @@ class Io(object):
     ##############################################################################################
     ########################################## MAIN LOOP #########################################
     ##############################################################################################
+
     def mainLoop(self):
         """
         main loop of os
@@ -172,6 +209,7 @@ class Io(object):
         count = 0
 
         while self.goOn:
+            begin=time()
 
             # change volume
             dec=self.volumeCtl.getDec()
@@ -200,56 +238,67 @@ class Io(object):
                 self.os.takeAction(MSG_BUTTON,id)
                 count = 1
 
-            #alarms
-            now = datetime.datetime.now(tz=tz)
-            for alarm in self.os.menu.getActiveAlarms():
-                if now.hour == alarm.hour and now.minute >= alarm.minute and alarm.reseted:
-                    alarm.reseted=False
-                    self.os.menu.forceRadio()
-
-
-            if now.hour==0 and now.minute==0 :
-                for alarm in self.os.menu.getActiveAlarms():
-                    alarm.reseted=True # reset all alarms at midnight
 
             # not very often
-            if count % 160 == 0:
+            if count % int(180/self.loopTime) == 0:
                 count = 1
-                self.dealWithCD()
                 self.updateRotariesStates()
+
+            if count % int(12 / self.loopTime) == 0:
+                for t in enumerate():
+                    print(t.name)
+                print()
 
 
             # not often
-            if count % 40 == 0:
+            if count % int(2.5/self.loopTime) == 0:
+
+                self.os.considerStoppingRebooting()
+
                 # this test is now done less often than before to prevent sd card corruption and overflow.
+
+                # alarms
+                now = datetime.datetime.now(tz=tz)
+                for alarm in self.os.menu.getActiveAlarms():
+                    if int(now.hour) == int(alarm.hour) and int(now.minute) >= int(alarm.minute) and alarm.reseted:
+                        alarm.reseted = False
+                        logInfo("alarm found in io_mr")
+                        self.os.menu.forceRadio()
+
+                if int(now.hour) == 0 and int(now.minute) == 0:
+                    for alarm in self.os.menu.getActiveAlarms():
+                        alarm.reseted = True  # reset all alarms at midnight
+
                 self.os.dealWithBluetoothCon()
                 self.backlight.test()
 
 
+
             # refresh view if any changes occurred
-            self.os.refreshView()
+            self.updateScreens()
+
+            count += 1
+            end=time()
+
+            sleep(max(self.loopTime  - (end-begin),0.01))
 
 
-            self.checkTemporaryWrite()
-            self.sendLinesToRemotes()
-
-            sleep(0.06)
-            count+=1
 
     ##############################################################################################
     ##############################################################################################
     ##############################################################################################
-
-    def endLoop(self):
-        self.goOn=False
 
     def closeIO(self):
-        self.goOn=False
+        self.goOn = False
         self.backlight.shutDown()
         self.askResendTexts()
-        self.nUDP.leaveNetwork()
         GPIO.cleanup()
+        NetworkUDP().leaveNetwork()
 
+    def updateScreens(self):
+        self.os.refreshView()
+        self.checkTemporaryWrite()
+        self.sendLinesToRemotes()
 
     def resetScreen(self):
         lcd_init()
@@ -262,12 +311,12 @@ class Io(object):
     def writeText(self, text, line, force=False):
         """
         text is locally changed and display next time
-        negative delay means text stay forever ;
         """
         if self.lines[line] != text or force:
             self.lines[line] = text
 
             if line < self.lcdLines:
+
                 lcd_string(text, line)
 
             elif line == self.lcdLines:
@@ -283,7 +332,6 @@ class Io(object):
                     self.outMessage.append(str(line)+"%"+text+";")
 
 
-
     def sendLinesToRemotes(self):
         if len(self.outMessage)==0:
             return
@@ -294,7 +342,8 @@ class Io(object):
                 mess=self.outMessage.pop()
                 out+=mess
         out=out[:-1]+")"
-        self.sendMessageTo(MSG_PRINT + "," + out, self.remoteControls)
+        self.sendMessageTo(MSG_PRINT + sep + out, self.remoteControls)
+
 
     def checkTemporaryWrite(self, force=False):
         tim = time()
@@ -322,8 +371,8 @@ class Io(object):
             line = int(elems[0])
             text=elems[1]
             if "Vol :" not in text:
-                self.writeText(text,line)
-        print()
+                self.writeText(text.replace("^","v"),line)
+
 
 
 
