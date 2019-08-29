@@ -8,8 +8,8 @@ from menu import Menu
 from libraries import system
 import datetime,pytz
 import time
-from libraries.constants import MSG_BUTTON,MSG_BACK,MSG_MENU,MSG_SELECT,MSG_VOL,MSG_ORDER,MSG_REFRESH,MSG_SUBSCRIBE,MSG_UNSUBSCRIBE,ASK_ISPLAYING,ASW_FALSE,ASW_TRUE
-from libraries.constants import MODE_BTSTREAM,MODE_LOCAL,MODE_SNAPSTREAM_IN,ORDER_SSTOP,ORDER_STOP,ORDER_SSYNC,MODE_SNAPSTREAM_OUT,ORDER_STARTEMIT,MSG_ASK
+from libraries.constants import MSG_BUTTON,MSG_BACK,MSG_MENU,MSG_SELECT,MSG_VOL,MSG_ORDER,MSG_REFRESH,MSG_SUBSCRIBE,MSG_UNSUBSCRIBE,ASK_ISPLAYING,ASW_TRUE
+from libraries.constants import MODE_BTSTREAM,MODE_LOCAL,MODE_SNAPSTREAM_IN,ORDER_SSTOP,ORDER_STOP,ORDER_SSYNC,MODE_SNAPSTREAM_OUT,ORDER_STARTEMIT
 from threading import Lock
 from uuid import getnode as get_mac
 import random
@@ -42,7 +42,7 @@ class Os(object):
         self.markTime()
         self.markFirstTime()
 
-        self.io.mainLoop() # main os loop
+        self.io.mainLoop() # _main os loop
 
     def setCDInside(self,bool):
         if bool!=self.cdInside:
@@ -79,16 +79,14 @@ class Os(object):
 
     def considerStoppingRebooting(self):
         now = datetime.datetime.now(tz=tz)
-        restartTimes=[17]
-        minimalInactivity=0 # half an hour
-        minimalOperationalTime=90
-
+        restartTimes=[15]
+        minimalInactivity=1800 # half an hour
+        minimalOperationalTime=3600*3
         if self.ellapsedTimeSinceLastAction()<minimalInactivity or self.ellapsedTotalTime() < minimalOperationalTime or system.isMPDPlaying() or self.mode==MODE_SNAPSTREAM_IN:
             return
 
         for time in restartTimes:
-            if now.hour == time and now.minute>= 42+ 0*self.minuteStop  :
-                print("exiting at ",now.hour,":",now.minute)
+            if now.hour == time and now.minute>= 42+ 0*self.minuteStop:
                 self._safeStop()
 
     def takeAction(self, action, value, source=name):
@@ -221,7 +219,7 @@ class Os(object):
                                 # this prevent remotes controls with name in xxx.local
                                 dest.append(d)
 
-                        for remote, answer in self.io.askMessageTo(MSG_ASK + sep + ASK_ISPLAYING, dest).items():
+                        for remote, answer in self.io.askMessageTo(ASK_ISPLAYING, dest).items():
 
                             if answer == ASW_TRUE:
                                 # we sync to the first remote which plays music
@@ -246,12 +244,7 @@ class Os(object):
                 self.menu.forceRadio()
 
             elif value == 4:
-                global shutdown
-
-                if shutdown :
-                    self.io.goOn = False
-
-                shutdown = True
+                self.io.connect._restartUDP()
 
     def askRefresh(self,value):
         """
@@ -299,7 +292,7 @@ class Os(object):
         self.menu.askRefreshFromOutside()
 
     def askNewVolume(self,dec):
-        """ must be changed to fulfill with updateView patern asked from main thread in update is required
+        """ must be changed to fulfill with updateView patern asked from _main thread in update is required
         :param dec:
         :return:
         """
@@ -372,7 +365,7 @@ class Os(object):
             #self.io.writeText("- back to stop -",2)
             return
 
-        if self.mode==MODE_LOCAL or self.mode==MODE_SNAPSTREAM_OUT:
+        if self.mode == MODE_LOCAL or self.mode == MODE_SNAPSTREAM_OUT:
             menu,choice,choiceTwo = self.menu.info()
 
 
@@ -428,7 +421,7 @@ class Os(object):
 
     def _safeStop(self,shutdown=False):
         """
-        This function should never be called directelly. The programm might be stopped by ending the main io loop : io.goOn=False
+        This function should never be called directelly. The programm might be stopped by ending the _main io loop : io.goOn=False
         :param shutdown:
         :return:
         """
@@ -458,7 +451,7 @@ os = Os()
 try:
     os.run()
 except KeyboardInterrupt:
-    print("received keyboard interrupt, exiting")
+    system.logInfo("received keyboard interrupt, exiting")
     pass
 
 finally :

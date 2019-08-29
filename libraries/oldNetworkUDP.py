@@ -67,7 +67,7 @@ class _TCPNetwork(threading.Thread):
         return (ins).encode('utf8') + TERMtcp
 
     def decode(self, ins):
-        return ins.decode('utf8').replace(TERM, "")
+        return ins._decode('utf8').replace(TERM, "")
 
     def remove_tcp_printer(self, name):
         self.printers[name].write(self.format(MSG_QUIT_TCP))
@@ -86,7 +86,7 @@ class _TCPNetwork(threading.Thread):
 
     def tcpSend_from_outside(self, name, message,wait=False):
         """
-        Send message (helper method for tcpSendAS)
+        Send message (helper method for _tcpSendAS)
         :param name: host's name
         :param message: message to be sent
         :return:
@@ -168,7 +168,7 @@ class _TCPNetwork(threading.Thread):
             #    count+=1
 
         logging.info("connection xoxoxo stopped with "+str(sender))
-        self.nUDP._host_has_left(sender)
+        self.nUDP._removeRemoteDevice(sender)
 
     async def tcpSendAS(self, name, message):
         logging.debug("sending " + str(message) + "    to " + str(name))
@@ -189,9 +189,9 @@ class _TCPNetwork(threading.Thread):
         for key, value in self.printers.items():
             value.write(self.format(MSG_QUIT_TCP))
             value.close()
+        await self.loop.shutdown_asyncgens()
         self.server.close()
         await self.server.wait_closed()
-        await self.loop.shutdown_asyncgens()
 
 
 #############################################################################
@@ -281,7 +281,7 @@ class _UDPNetwork(threading.Thread):
 
             try:
                 data, address = self.nUDP.my_recvsocket.recvfrom(256)  # TODO : to be improved
-                data=data.decode()
+                data=data._decode()
                 if not self.nUDP.alive:
                     continue
                 #logging.debug("received udp data "+str( data)) -> to much messages incomming
@@ -307,7 +307,7 @@ class _UDPNetwork(threading.Thread):
             except socket.timeout:
                 continue
             except IndexError:
-                logging.warning("received a message in the wrong format (index error): " + str(data))
+                logging.warning("received a message in the wrong _format (index error): " + str(data))
                 continue
 
             if kind == MSG_HRU:
@@ -454,6 +454,7 @@ class NetworkUDP(metaclass=Singleton):
         self.tcp = _TCPNetwork(self)
         while(not self.tcp.loopCreated):
             time.sleep(0.001)
+
         self.llt = _UDPNetwork(self)
 
     def _funcRecep(self, msg, sender):
@@ -541,7 +542,7 @@ class NetworkUDP(metaclass=Singleton):
                 destStr += name + ","
         destStr = destStr[:-1] + "]"  # removing last comma  and adding final bracket
 
-        message = kind + SEP + destStr + SEP + msg + TERM  # this is the only format accepted for messages
+        message = kind + SEP + destStr + SEP + msg + TERM  # this is the only _format accepted for messages
         self.my_sendSocket.sendto(message.encode(), (self.multicast_ip, self.port))
         return allFound
 

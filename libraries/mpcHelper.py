@@ -12,8 +12,7 @@ class MpcHelper(threading.Thread):
         threading.Thread.__init__(self)
         self.tracks=tracks
 
-
-        self.daemon = True
+        self.setDaemon(True)
         self.alive = True
 
         self.lastText = ""
@@ -21,7 +20,7 @@ class MpcHelper(threading.Thread):
 
         self.sm = subMenu
         MpcHelper.exist = True
-        print("thread mpc helper started")
+
         self.start()
 
 
@@ -39,7 +38,7 @@ class MpcHelper(threading.Thread):
         output = startReturnCommand("/usr/bin/mpc")
         if len(output) == 1:
             self.sm.actionTagTwo = "  end  "
-            self.sm.askRefresh = True
+            self.getAncestorMenu().askRefreshFromOutside()
             self.alive=False
 
 
@@ -62,11 +61,11 @@ class MpcHelper(threading.Thread):
             self.lastStatus = status
             self.sm.actionTag = text
             self.sm.actionTagTwo = status
-            self.sm.askRefresh = True
+            self.sm.getAncestorMenu().askRefreshFromOutside()
 
 
     def run(self):
         while(self.alive):
             self.updateView()
-            time.sleep(0.3)
+            time.sleep(0.4)
         MpcHelper.exist = False

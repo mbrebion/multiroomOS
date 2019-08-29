@@ -35,6 +35,7 @@ class SubMenu(object):
         self.kind="menu"
         self.selectable=True
 
+
     def explorable(self):
         return len(self.list) != 0
 
@@ -245,7 +246,7 @@ class Menu(SubMenu):
             self.currentSub._previous()
 
     def askRefreshFromOutside(self):
-        self.askRefresh=True
+        self.askRefresh = True
 
     def requireRefresh(self):
         out = False

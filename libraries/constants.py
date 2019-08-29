@@ -12,7 +12,7 @@ MSG_BACK="prev"
 MSG_SHUTDOWN="sd"
 MSG_BUTTON="button"
 
-MSG_ASK="ask"
+
 MSG_PRINT="print"
 MSG_ORDER="order"
 MSG_REFRESH="refresh"

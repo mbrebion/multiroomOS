@@ -1,4 +1,4 @@
-from libraries.networkUDP import NetworkUDP
+from libraries.connect import Connect
 
 __author__ = 'mbrebion'
 
@@ -6,12 +6,13 @@ from libraries.i2clcda import lcd_init,lcd_string
 from libraries.RotaryEncoder import RotaryEncoder
 from libraries.backlight import Backlight
 from libraries.faceButtons import FaceButtons
+from libraries.connect import Connect
 from time import sleep,time
-from libraries.constants import MSG_BUTTON,MSG_BACK,MSG_MENU,MSG_SELECT,MSG_VOL,BIG,MSG_PRINT,MSG_ASK,ASK_ISPLAYING,ASW_TRUE,ASW_FALSE,MODE_SNAPSTREAM_OUT
+from libraries.constants import MSG_BUTTON,MSG_BACK,MSG_MENU,MSG_SELECT,MSG_VOL,BIG,MSG_PRINT,ASK_ISPLAYING,ASW_TRUE,ASW_FALSE,MODE_SNAPSTREAM_OUT
 from config import rotOne,rotTwo,entries,name,kind
 import datetime,pytz
 from libraries.system import checkCDStatus,logDebug,logInfo,logWarning,isMPDPlaying
-from threading import Lock,enumerate
+from threading import Lock
 from RPi import GPIO
 
 
@@ -59,14 +60,43 @@ class Io(object):
             logWarning("no lcd screen connected")
         self.resend=False
 
-
-
         # Network
         self.startNetwork()
 
+    ############## gpio connected stuff ###########
+
+    def askBacklight(self):
+        self.backlight.newCommand()
+
+    def dealWithCD(self):
+        if "cd" not in entries:
+            return
+
+        out = checkCDStatus()
+        if out == False:
+            self.os.setCDInside(False)
+        else:
+            self.os.setCDInside(True)
+
+        self.os.menu.setCDInfos(out)
+
+    def updateRotariesStates(self):
+        self.volumeCtl.updateState()
+        self.menuCtl.updateState()
+
+    ################### Networking ################
+
     def startNetwork(self):
-        self.nUDP=NetworkUDP(name=name, fr=self.receivingRemoteMessage,fhu=self.updatingRemotesList,fe=self.errorHandling)  # load network facilities (with default IP and port)
+        self.connect=Connect(fr=self.receivingRemoteMessage, fhu=self.updatingRemotesList, fe=self.errorHandling,fa=self.answerToQuestion, name=name)  # load network facilities (with default IP and port)
         self.remoteControls = []
+
+    def answerToQuestion(self, question, sender):
+        logDebug(" somebody (" + sender + ") asked " + question)
+        if question == ASK_ISPLAYING:
+            if isMPDPlaying():
+                return ASW_TRUE
+            else:
+                return ASW_FALSE
 
     def appendRemoteControls(self,name):
         if name not in self.remoteControls:
@@ -93,10 +123,9 @@ class Io(object):
                 self.os.stopOutputtingToSnapCast()
             pass
 
-    def errorHandling(self,error):
-        logWarning("error happened in networkUDP caused by message : ", error)
-        self.os._safeStop()
-
+    def errorHandling(self, error):
+        # self.os._safeStop()
+        logWarning("error happened in connect caused by message : ", error)
 
     def receivingRemoteMessage(self,message,source):
         """
@@ -113,15 +142,8 @@ class Io(object):
             self.writeTextFromRemote(msg[1])
             return
 
-        if msg[0] == MSG_ASK :
-            logDebug(" somebody ("+source+") asked "+ msg[1])
-            if msg[1]==ASK_ISPLAYING:
-                if isMPDPlaying():
-                    self.sendMessageTo(ASW_TRUE,source)
-                else:
-                    self.sendMessageTo(ASW_FALSE, source)
-        else:
-            self.os.takeAction(msg[0], int(msg[1]), source)
+        self.os.takeAction(msg[0], int(msg[1]), source)
+        self.sendLinesToRemotes()
 
     def updatingRemotesList(self,remotes):
         """
@@ -153,16 +175,16 @@ class Io(object):
         :return: nothing
         """
 
-        NetworkUDP().sendMSG(text,dest=self.remoteNames)
+        self.connect.sendMessage(text,dest=self.remoteNames)
 
-    def askMessageTo(self, msg, dest):
+    def askMessageTo(self, question, dest):
         """
         ask question to targeted remotes devices and return answers
         :param msg: question asked
         :param dest: remote device or list of remote devices
         :return: dict containing answers from devices (may contains False if remote has not answer within a TIMOUT)
         """
-        return NetworkUDP().askDevice(msg, dest)
+        return self.connect.askDevice(question, dest)
 
     def sendMessageTo(self, text, dest):
         """
@@ -172,27 +194,8 @@ class Io(object):
         :param dest: list of remotes which must receive this message
         :return: nothing
         """
-        NetworkUDP().sendMSG(text, dest=dest)
+        self.connect.sendMessage(text, dest=dest)
 
-    def askBacklight(self):
-        self.backlight.newCommand()
-
-    def dealWithCD(self):
-        if "cd" not in entries:
-            return
-
-        out=checkCDStatus()
-        if out==False:
-            self.os.setCDInside(False)
-        else:
-            self.os.setCDInside(True)
-
-
-        self.os.menu.setCDInfos(out)
-
-    def updateRotariesStates(self):
-        self.volumeCtl.updateState()
-        self.menuCtl.updateState()
 
     ##############################################################################################
     ########################################## MAIN LOOP #########################################
@@ -200,7 +203,7 @@ class Io(object):
 
     def mainLoop(self):
         """
-        main loop of os
+        _main loop of os
         outputs to devices and lcds should only be performed from this thread to prevent concurrency
         Other thread might ask for an output refresh
         :return: nothing
@@ -244,10 +247,6 @@ class Io(object):
                 count = 1
                 self.updateRotariesStates()
 
-            if count % int(12 / self.loopTime) == 0:
-                for t in enumerate():
-                    print(t.name)
-                print()
 
 
             # not often
@@ -282,8 +281,6 @@ class Io(object):
 
             sleep(max(self.loopTime  - (end-begin),0.01))
 
-
-
     ##############################################################################################
     ##############################################################################################
     ##############################################################################################
@@ -293,7 +290,7 @@ class Io(object):
         self.backlight.shutDown()
         self.askResendTexts()
         GPIO.cleanup()
-        NetworkUDP().leaveNetwork()
+        Connect.instance.leavingNetwork()
 
     def updateScreens(self):
         self.os.refreshView()
@@ -305,21 +302,24 @@ class Io(object):
         self.askResendTexts()
 
     def askResendTexts(self):
-        for i in range(len(self.lines)):
+
+        for i in range(1,len(self.lines)):
             self.writeText(self.lines[i],i,force=True)
+        self.sendLinesToRemotes()
 
     def writeText(self, text, line, force=False):
         """
         text is locally changed and display next time
         """
-        if self.lines[line] != text or force:
-            self.lines[line] = text
 
+        if self.lines[line] != text or force:   ############### we never pass this when change in backlight occur
+            self.lines[line] = text
             if line < self.lcdLines:
 
                 lcd_string(text, line)
 
             elif line == self.lcdLines:
+                self.correctLastLine = False
                 self.message=text
                 self.checkTemporaryWrite()
             else:
@@ -331,12 +331,12 @@ class Io(object):
                 with self.sendLock:
                     self.outMessage.append(str(line)+"%"+text+";")
 
-
     def sendLinesToRemotes(self):
-        if len(self.outMessage)==0:
-            return
 
         with self.sendLock:
+            if len(self.outMessage) == 0:
+                return
+
             out="("
             while len(self.outMessage)>0:
                 mess=self.outMessage.pop()
@@ -344,9 +344,9 @@ class Io(object):
         out=out[:-1]+")"
         self.sendMessageTo(MSG_PRINT + sep + out, self.remoteControls)
 
-
     def checkTemporaryWrite(self, force=False):
         tim = time()
+
         if (tim > self.lastChange + self.delay or force):
             # we can print a new message
             for k in range(self.lcdLines, len(self.messageQueu)):
@@ -355,9 +355,13 @@ class Io(object):
                     lcd_string(self.messageQueu[k], self.lcdLines)
                     self.messageQueu[k] = ""
                     self.lastChange = tim
+                    self.correctLastLine = False
                     return
 
-            lcd_string(self.message, self.lcdLines)
+            if not self.correctLastLine:
+                lcd_string(self.message, self.lcdLines)
+                self.correctLastLine = True
+
 
     def writeTextFromRemote(self,outMessage):
         """

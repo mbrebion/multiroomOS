@@ -2,11 +2,10 @@ __author__ = 'mbrebion'
 
 import os as osys
 import subprocess
-from libraries.networkUDP import NetworkUDP
+from libraries.connect import Connect
 import time
 import shelve
 import logging
-import traceback
 
 
 ################################################################
@@ -40,10 +39,12 @@ def startReturnCommand(command):
 startCommand("cp /home/pi/os/pythonos.log /home/pi/os/saved_pythonos.log")
 logging.basicConfig(filename='/home/pi/os/pythonos.log',level=logging.INFO,format='%(asctime)s %(levelname)s %(message)s', datefmt='%Y-%m-%d,%H:%M:%S',filemode='w')
 
+"""
 def log_except_hook(*exc_info):
     text = "".join(traceback.format_exception(*exc_info))
     logging.critical("Unhandled exception: %s", text)
     print(text)
+"""
 
 def logDebug(*message):
     out=""
@@ -101,7 +102,7 @@ def shutdownWifi():
     global wifiStatus
     if wifiStatus:
 
-        NetworkUDP().leaveNetwork()
+        Connect.instance.leavingNetwork()
         logDebug("wifi down !")
         startCommand("sudo ifconfig wlan0 down")
 

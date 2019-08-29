@@ -1,0 +1,791 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="6462b6c7-ded9-40a2-aace-99167aac7711" name="Default" comment="badly working version. app get in trouble when another device quit the network.&#10;&#10;New (simpler) version of networkUDP is to come">
+      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/libraries/connect.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/nohup.out" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/savedRpiFiles/asound.conf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/savedRpiFiles/config_kitchen.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/savedRpiFiles/config_main.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/savedRpiFiles/mpd.conf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/savedRpiFiles/testRotary/data.dat" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/savedRpiFiles/testRotary/testrotary.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/savedRpiFiles/testRotary/testrotary.py.bak" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/deploy.sh" beforeDir="false" afterPath="$PROJECT_DIR$/deploy.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/io_mr.py" beforeDir="false" afterPath="$PROJECT_DIR$/io_mr.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/libraries/backlight.py" beforeDir="false" afterPath="$PROJECT_DIR$/libraries/backlight.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/libraries/constants.py" beforeDir="false" afterPath="$PROJECT_DIR$/libraries/constants.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/libraries/i2clcda.py" beforeDir="false" afterPath="$PROJECT_DIR$/libraries/i2clcda.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/libraries/mpcHelper.py" beforeDir="false" afterPath="$PROJECT_DIR$/libraries/mpcHelper.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/libraries/networkUDP.py" beforeDir="false" afterPath="$PROJECT_DIR$/libraries/oldNetworkUDP.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/libraries/system.py" beforeDir="false" afterPath="$PROJECT_DIR$/libraries/system.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/menu.py" beforeDir="false" afterPath="$PROJECT_DIR$/menu.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/os_mr.py" beforeDir="false" afterPath="$PROJECT_DIR$/os_mr.py" afterDir="false" />
+    </list>
+    <ignored path="multiRoom.iws" />
+    <ignored path=".idea/workspace.xml" />
+    <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="CreatePatchCommitExecutor">
+    <option name="PATCH_PATH" value="" />
+  </component>
+  <component name="FUSProjectUsageTrigger">
+    <session id="390790028">
+      <usages-collector id="statistics.lifecycle.project">
+        <counts>
+          <entry key="project.closed" value="54" />
+          <entry key="project.open.time.0" value="3" />
+          <entry key="project.open.time.1" value="5" />
+          <entry key="project.open.time.10" value="2" />
+          <entry key="project.open.time.11" value="3" />
+          <entry key="project.open.time.12" value="3" />
+          <entry key="project.open.time.13" value="2" />
+          <entry key="project.open.time.15" value="2" />
+          <entry key="project.open.time.20" value="1" />
+          <entry key="project.open.time.22" value="1" />
+          <entry key="project.open.time.3" value="1" />
+          <entry key="project.open.time.5" value="1" />
+          <entry key="project.open.time.6" value="2" />
+          <entry key="project.open.time.7" value="8" />
+          <entry key="project.open.time.8" value="12" />
+          <entry key="project.open.time.9" value="9" />
+          <entry key="project.opened" value="55" />
+        </counts>
+      </usages-collector>
+      <usages-collector id="statistics.file.extensions.edit">
+        <counts>
+          <entry key="dummy" value="145" />
+          <entry key="py" value="53002" />
+          <entry key="sh" value="3" />
+          <entry key="txt" value="1325" />
+        </counts>
+      </usages-collector>
+      <usages-collector id="statistics.file.types.edit">
+        <counts>
+          <entry key="PLAIN_TEXT" value="1473" />
+          <entry key="Python" value="53002" />
+        </counts>
+      </usages-collector>
+      <usages-collector id="statistics.vcs.git.usages" />
+      <usages-collector id="statistics.file.types.open">
+        <counts>
+          <entry key="PLAIN_TEXT" value="4" />
+          <entry key="Python" value="230" />
+          <entry key="PythonStub" value="5" />
+        </counts>
+      </usages-collector>
+      <usages-collector id="statistics.file.extensions.open">
+        <counts>
+          <entry key="bak" value="1" />
+          <entry key="py" value="230" />
+          <entry key="pyi" value="5" />
+          <entry key="sh" value="1" />
+          <entry key="txt" value="2" />
+        </counts>
+      </usages-collector>
+    </session>
+  </component>
+  <component name="FavoritesManager">
+    <favorites_list name="multiRoom" />
+  </component>
+  <component name="FileEditorManager">
+    <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
+      <file pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/libraries/system.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="365">
+              <caret line="104" column="39" selection-start-line="104" selection-start-column="39" selection-end-line="104" selection-end-column="39" />
+              <folding>
+                <element signature="e#25#42#0" expanded="true" />
+                <marker date="1567082499723" expanded="true" signature="2139:2217" ph="..." />
+                <marker date="1567082499723" expanded="true" signature="2248:2253" ph="..." />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/libraries/oldNetworkUDP.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="652">
+              <caret line="618" column="8" selection-start-line="618" selection-start-column="8" selection-end-line="618" selection-end-column="8" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/io_mr.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="2100">
+              <caret line="140" column="21" selection-start-line="140" selection-start-column="16" selection-end-line="140" selection-end-column="21" />
+              <folding>
+                <marker date="1562241190044" expanded="true" signature="2514:2737" ph="..." />
+                <marker date="1562241190044" expanded="true" signature="4494:5825" ph="..." />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/libraries/connect.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="513">
+              <caret line="140" column="22" selection-start-line="140" selection-start-column="8" selection-end-line="140" selection-end-column="22" />
+              <folding>
+                <element signature="e#0#14#0" expanded="true" />
+                <marker date="1562749580592" expanded="true" signature="8086:8529" ph="..." />
+                <marker date="1562749580592" expanded="true" signature="18348:18964" ph="..." />
+                <marker date="1562749580592" expanded="true" signature="18677:18737" ph="..." />
+                <marker date="1562749580592" expanded="true" signature="18880:18885" ph="..." />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/os_mr.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="885">
+              <caret line="368" selection-start-line="368" selection-end-line="368" />
+              <folding>
+                <element signature="e#26#49#0" expanded="true" />
+                <marker date="1562521684068" expanded="true" signature="1153:1162" ph="..." />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/menu.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="596">
+              <caret line="677" column="25" selection-start-line="677" selection-start-column="25" selection-end-line="677" selection-end-column="25" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/libraries/backlight.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="300">
+              <caret line="22" selection-start-line="22" selection-end-line="22" />
+              <folding>
+                <element signature="e#25#51#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+    </leaf>
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+      </list>
+    </option>
+  </component>
+  <component name="FindInProjectRecents">
+    <findStrings>
+      <find>start</find>
+      <find>.start(</find>
+      <find>.start</find>
+      <find>_host</find>
+      <find>keys</find>
+      <find>_deco</find>
+      <find>not yet</find>
+      <find>open_connection</find>
+      <find>loop</find>
+      <find>write(</find>
+      <find>Received</find>
+      <find>_compl</find>
+      <find>_comple</find>
+      <find>before</find>
+      <find>handling</find>
+      <find>askRe</find>
+      <find>sendMessageTo(MSG_PRINT</find>
+      <find>started</find>
+      <find>closeP</find>
+      <find>error cau</find>
+      <find>error ha</find>
+      <find>waiting</find>
+      <find>print(</find>
+      <find>self._form</find>
+      <find>pri</find>
+      <find>prin</find>
+      <find>print</find>
+      <find>network</find>
+      <find>sett</find>
+      <find>blueto</find>
+    </findStrings>
+  </component>
+  <component name="Git.Settings">
+    <option name="PREVIOUS_COMMIT_AUTHORS">
+      <list>
+        <option value="mbrebion" />
+      </list>
+    </option>
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="debugRotary" />
+      </map>
+    </option>
+  </component>
+  <component name="IdeDocumentHistory">
+    <option name="CHANGED_PATHS">
+      <list>
+        <option value="$PROJECT_DIR$/is_mr.py" />
+        <option value="$PROJECT_DIR$/libraries/__init__.py" />
+        <option value="$PROJECT_DIR$/libraries/rotaryEncoder.py" />
+        <option value="$PROJECT_DIR$/mpdHelper.py" />
+        <option value="$PROJECT_DIR$/simpleMenu.py" />
+        <option value="$PROJECT_DIR$/libraries/Settings.py" />
+        <option value="$PROJECT_DIR$/simpleIO_mr.py" />
+        <option value="$PROJECT_DIR$/faceButtons.py" />
+        <option value="$PROJECT_DIR$/todo.txt" />
+        <option value="$PROJECT_DIR$/libraries/tcpComm.py" />
+        <option value="$PROJECT_DIR$/libraries/networkCoro.py" />
+        <option value="$PROJECT_DIR$/libraries/networkConstantsPycos.py" />
+        <option value="$PROJECT_DIR$/libraries/networkMasterPycos.py" />
+        <option value="$PROJECT_DIR$/libraries/networkPycos.py" />
+        <option value="$PROJECT_DIR$/networkUDP.py" />
+        <option value="$PROJECT_DIR$/config.py" />
+        <option value="$PROJECT_DIR$/scripts/setSnapVolume.sh" />
+        <option value="$PROJECT_DIR$/system.py" />
+        <option value="$PROJECT_DIR$/libraries/faceButton.py" />
+        <option value="$PROJECT_DIR$/libraries/faceButtons.py" />
+        <option value="$PROJECT_DIR$/libraries/RotaryEncoder.py" />
+        <option value="$PROJECT_DIR$/libraries/networkUDP.py" />
+        <option value="$PROJECT_DIR$/libraries/Connect.py" />
+        <option value="$PROJECT_DIR$/libraries/mpcHelper.py" />
+        <option value="$PROJECT_DIR$/libraries/constants.py" />
+        <option value="$PROJECT_DIR$/menu.py" />
+        <option value="$PROJECT_DIR$/libraries/i2clcda.py" />
+        <option value="$PROJECT_DIR$/io_mr.py" />
+        <option value="$PROJECT_DIR$/os_mr.py" />
+        <option value="$PROJECT_DIR$/libraries/backlight.py" />
+        <option value="$PROJECT_DIR$/libraries/connect.py" />
+        <option value="$PROJECT_DIR$/libraries/system.py" />
+      </list>
+    </option>
+  </component>
+  <component name="ProjectFrameBounds">
+    <option name="x" value="-1920" />
+    <option name="y" value="-157" />
+    <option name="width" value="1920" />
+    <option name="height" value="1057" />
+  </component>
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectView">
+    <navigator proportions="" version="1">
+      <foldersAlwaysOnTop value="true" />
+    </navigator>
+    <panes>
+      <pane id="ProjectPane">
+        <subPane>
+          <expand>
+            <path>
+              <item name="multiRoom" type="b2602c69:ProjectViewProjectNode" />
+              <item name="multiRoom" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="multiRoom" type="b2602c69:ProjectViewProjectNode" />
+              <item name="multiRoom" type="462c0819:PsiDirectoryNode" />
+              <item name="libraries" type="462c0819:PsiDirectoryNode" />
+            </path>
+          </expand>
+          <select />
+        </subPane>
+      </pane>
+      <pane id="Scope" />
+    </panes>
+  </component>
+  <component name="PropertiesComponent">
+    <property name="FileHistory.git4idea.history.GitHistoryProvider_flatOrder0" value="0" />
+    <property name="FileHistory.git4idea.history.GitHistoryProvider_flatOrder1" value="1" />
+    <property name="FileHistory.git4idea.history.GitHistoryProvider_flatOrder2" value="2" />
+    <property name="FileHistory.git4idea.history.GitHistoryProvider_flatOrder3" value="3" />
+    <property name="FileHistory.git4idea.history.GitHistoryProvider_flatWidth0" value="84" />
+    <property name="FileHistory.git4idea.history.GitHistoryProvider_flatWidth1" value="86" />
+    <property name="FileHistory.git4idea.history.GitHistoryProvider_flatWidth2" value="90" />
+    <property name="FileHistory.git4idea.history.GitHistoryProvider_flatWidth3" value="884" />
+    <property name="FileHistory.git4idea.history.GitHistoryProvider_treeOrder0" value="0" />
+    <property name="FileHistory.git4idea.history.GitHistoryProvider_treeOrder1" value="1" />
+    <property name="FileHistory.git4idea.history.GitHistoryProvider_treeOrder2" value="2" />
+    <property name="FileHistory.git4idea.history.GitHistoryProvider_treeOrder3" value="3" />
+    <property name="FileHistory.git4idea.history.GitHistoryProvider_treeWidth0" value="84" />
+    <property name="FileHistory.git4idea.history.GitHistoryProvider_treeWidth1" value="86" />
+    <property name="FileHistory.git4idea.history.GitHistoryProvider_treeWidth2" value="90" />
+    <property name="FileHistory.git4idea.history.GitHistoryProvider_treeWidth3" value="884" />
+    <property name="FullScreen" value="false" />
+    <property name="SearchEverywhereHistoryKey" value="syste&#9;FILE&#9;file:///Users/mbrebion/PycharmProjects/multiRoom/system.py" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="options.lastSelected" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
+    <property name="options.splitter.details.proportions" value="0.2" />
+    <property name="options.splitter.main.proportions" value="0.3" />
+    <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
+  </component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/libraries" />
+    </key>
+  </component>
+  <component name="RunDashboard">
+    <option name="ruleStates">
+      <list>
+        <RuleState>
+          <option name="name" value="ConfigurationTypeDashboardGroupingRule" />
+        </RuleState>
+        <RuleState>
+          <option name="name" value="StatusDashboardGroupingRule" />
+        </RuleState>
+      </list>
+    </option>
+  </component>
+  <component name="RunManager">
+    <configuration default="true" type="tests" factoryName="Attests">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="multiRoom" />
+      <option name="SCRIPT_NAME" value="" />
+      <option name="CLASS_NAME" value="" />
+      <option name="METHOD_NAME" value="" />
+      <option name="FOLDER_NAME" value="" />
+      <option name="TEST_TYPE" value="TEST_SCRIPT" />
+      <option name="PATTERN" value="" />
+      <option name="USE_PATTERN" value="false" />
+      <method />
+    </configuration>
+  </component>
+  <component name="SvnConfiguration">
+    <configuration />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <created>1539515321446</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1539515321446</updated>
+    </task>
+    <task id="LOCAL-00001" summary="* sudo added for cd ripping (now seems to work)&#10;* better dealing with lcd screen (faster)&#10;* better dealing with checks (bluetooth files and cds are only checked when buttons are not in use)">
+      <created>1550500432717</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1550500432717</updated>
+    </task>
+    <task id="LOCAL-00002" summary="* porting to python3&#10;* better dealing with volume level and snapclients (via json scripts)&#10;* using snapclient -s 6 which performes much more better than -s 2 (no need for software volume ajustments anymore&#10;* bouncetime off for rotaries (experimental)">
+      <created>1550580135809</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1550580135809</updated>
+    </task>
+    <task id="LOCAL-00003" summary="* new library for tcp comm using pycos lib&#10;* this is not a working version as the new lib is not used yet">
+      <created>1551366641114</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1551366641114</updated>
+    </task>
+    <task id="LOCAL-00004" summary="* pycos is not suited for this. A new library has been taylored and relies on UDP multicast&#10;This library provides good results but has not been tested (its located in file networkUDP.py)&#10;&#10;This is the last commit before integration">
+      <created>1552040839739</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1552040839739</updated>
+    </task>
+    <task id="LOCAL-00005" summary="networkUDP work fines but lots of udp packets are lost between rpis and distant remotes (android devices, osx).&#10;This is the last commit before adding a tcp layer in networkUDP">
+      <created>1556457841945</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1556457841945</updated>
+    </task>
+    <task id="LOCAL-00006" summary="working version of networkUDP with tcp layer (with the use of asyncio)&#10;The project now requires python 3.6 at least">
+      <created>1557059623737</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1557059623737</updated>
+    </task>
+    <task id="LOCAL-00007" summary="badly working version. app get in trouble when another device quit the network.&#10;&#10;New (simpler) version of networkUDP is to come">
+      <created>1562141649174</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1562141649175</updated>
+    </task>
+    <option name="localTasksCounter" value="8" />
+    <servers />
+  </component>
+  <component name="TodoView" selected-index="4">
+    <todo-panel id="selected-file">
+      <are-packages-shown value="false" />
+      <are-modules-shown value="false" />
+      <flatten-packages value="false" />
+      <is-autoscroll-to-source value="false" />
+    </todo-panel>
+    <todo-panel id="all">
+      <are-packages-shown value="false" />
+      <are-modules-shown value="false" />
+      <flatten-packages value="false" />
+      <is-autoscroll-to-source value="false" />
+    </todo-panel>
+    <todo-panel id="default-changelist">
+      <are-packages-shown value="false" />
+      <are-modules-shown value="false" />
+      <flatten-packages value="false" />
+      <is-autoscroll-to-source value="false" />
+    </todo-panel>
+  </component>
+  <component name="ToolWindowManager">
+    <frame x="-1920" y="-157" width="1920" height="1057" extended-state="0" />
+    <editor active="true" />
+    <layout>
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.13322802" />
+      <window_info id="Structure" order="1" weight="0.20010532" />
+      <window_info id="Favorites" order="2" side_tool="true" />
+      <window_info anchor="bottom" id="Message" order="0" />
+      <window_info anchor="bottom" id="Find" order="1" sideWeight="0.4997367" weight="0.26943004" />
+      <window_info anchor="bottom" id="Run" order="2" />
+      <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
+      <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
+      <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
+      <window_info anchor="bottom" id="TODO" order="6" weight="0.32916668" />
+      <window_info anchor="bottom" id="Terminal" order="7" weight="0.18549223" />
+      <window_info anchor="bottom" id="Event Log" order="8" sideWeight="0.5002633" side_tool="true" weight="0.17098446" />
+      <window_info anchor="bottom" id="Changes" order="9" weight="0.32916668" />
+      <window_info anchor="bottom" id="Version Control" order="10" weight="0.39549437" />
+      <window_info anchor="bottom" id="Application Servers" order="11" />
+      <window_info anchor="bottom" id="Python Console" order="12" />
+      <window_info anchor="bottom" id="Messages" order="13" />
+      <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
+      <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
+      <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
+    </layout>
+  </component>
+  <component name="Vcs.Log.UiProperties">
+    <option name="RECENTLY_FILTERED_USER_GROUPS">
+      <collection />
+    </option>
+    <option name="RECENTLY_FILTERED_BRANCH_GROUPS">
+      <collection />
+    </option>
+  </component>
+  <component name="VcsContentAnnotationSettings">
+    <option name="myLimit" value="2678400000" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <option name="CHECK_NEW_TODO" value="false" />
+    <MESSAGE value="First commit of multiroom os&#10;&#10;This version is barely working for a single rpi&#10; - bluetooth option&#10; - radio mode&#10; - local music mode (not finished)" />
+    <MESSAGE value="better gestion of rotaries" />
+    <MESSAGE value="beginning of mpd integration" />
+    <MESSAGE value="commit before simplification of rotary encoder class (new models used )" />
+    <MESSAGE value="Modifications : &#10;  - simpler gestion of rotaries (new models more efficients)&#10;  - devices (other hifi system) and remotecontrols can connect to main hifisystem&#10;  Remotes controls mimic the io interface and can send messages and receive text&#10;  Devices are other hifi systems (kitchen, bedroom, ... ) and automatically tries to connect to main hifi ( and reconnect in case of connection lost) -&gt; this allows to use commands which apply to all devices&#10;   - simpleIO has been simplified&#10;   - tcp socket have been moved to a proper file&#10;   - a constant.py file has been created&#10;" />
+    <MESSAGE value="bug corrections : &#10; - lcd backlight is now held by software &#10; - album where no artist is specified (but album artist is) are now working properly&#10; - rotaries are better used (a measurement has been performed and their bouncetime is very shorter than a ms)&#10; &#10; improvements : &#10; - better menus for local music : display of number in list&#10; - scroll can be faster with rotaries" />
+    <MESSAGE value="- real working multicast with snap cast&#10;-&gt; button 1 sitch between local and multicast output&#10;-&gt; all devices automatcally connect to main device and wait for commands&#10;&#10;- bug corrections" />
+    <MESSAGE value="last commit before tru server/client mode&#10;" />
+    <MESSAGE value="Last commit before cd ripping&#10;" />
+    <MESSAGE value="*cd ripping done (but not tested yet ...)&#10;* better dealing of modes (bluetooth, snapcast_out, snapcast_in, local, ...)&#10;* all devices can now broadcast music&#10;*bug correction&#10;" />
+    <MESSAGE value="* sudo added for cd ripping (now seems to work)&#10;* better dealing with lcd screen (faster)&#10;* better dealing with checks (bluetooth files and cds are only checked when buttons are not in use)" />
+    <MESSAGE value="* porting to python3&#10;* better dealing with volume level and snapclients (via json scripts)&#10;* using snapclient -s 6 which performes much more better than -s 2 (no need for software volume ajustments anymore&#10;* bouncetime off for rotaries (experimental)" />
+    <MESSAGE value="* new library for tcp comm using pycos lib&#10;* this is not a working version as the new lib is not used yet" />
+    <MESSAGE value="* pycos is not suited for this. A new library has been taylored and relies on UDP multicast&#10;This library provides good results but has not been tested (its located in file networkUDP.py)&#10;&#10;This is the last commit before integration" />
+    <MESSAGE value="networkUDP work fines but lots of udp packets are lost between rpis and distant remotes (android devices, osx).&#10;This is the last commit before adding a tcp layer in networkUDP" />
+    <MESSAGE value="working version of networkUDP with tcp layer (with the use of asyncio)&#10;The project now requires python 3.6 at least" />
+    <MESSAGE value="badly working version. app get in trouble when another device quit the network.&#10;&#10;New (simpler) version of networkUDP is to come" />
+    <option name="LAST_COMMIT_MESSAGE" value="badly working version. app get in trouble when another device quit the network.&#10;&#10;New (simpler) version of networkUDP is to come" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/libraries/i2clcda.py</url>
+          <line>9</line>
+          <option name="timeStamp" value="1" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
+  </component>
+  <component name="editorHistoryManager">
+    <entry file="file://$PROJECT_DIR$/libraries/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state>
+          <caret line="2" selection-start-line="2" selection-end-line="2" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/Library/Caches/PyCharmCE2018.2/python_stubs/-246395825/__builtin__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="252">
+          <caret line="423" column="4" selection-start-line="423" selection-start-column="4" selection-end-line="423" selection-end-column="4" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/libraries/faceButtons.py.bak" />
+    <entry file="file:///Library/Frameworks/Python.framework/Versions/3.6/lib/python3.6/traceback.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="252">
+          <caret line="160" column="4" selection-start-line="160" selection-start-column="4" selection-end-line="160" selection-end-column="4" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/libraries/networkConstantsPycos.py" />
+    <entry file="file://$PROJECT_DIR$/libraries/networkMasterPycos.py" />
+    <entry file="file://$APPLICATION_HOME_DIR$/helpers/typeshed/stdlib/3/typing.pyi">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="312">
+          <caret line="360" column="8" selection-start-line="360" selection-start-column="8" selection-end-line="360" selection-end-column="8" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/libraries/networkPycos.py" />
+    <entry file="file:///Library/Frameworks/Python.framework/Versions/3.6/lib/python3.6/site-packages/pycos/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="714">
+          <caret line="3390" column="35" lean-forward="true" selection-start-line="3386" selection-end-line="3390" selection-end-column="35" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/Library/Caches/PyCharmCE2018.2/python_stubs/-246395825/builtins.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="539">
+          <caret line="5240" column="8" selection-start-line="5240" selection-start-column="8" selection-end-line="5240" selection-end-column="8" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file:///Library/Frameworks/Python.framework/Versions/3.6/lib/python3.6/site-packages/pycos/netpycos.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="135">
+          <caret line="141" column="8" selection-start-line="141" selection-start-column="8" selection-end-line="141" selection-end-column="34" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/todo.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="105">
+          <caret line="7" lean-forward="true" selection-start-line="7" selection-end-line="7" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/scripts/setSnapVolume.sh" />
+    <entry file="file:///Library/Frameworks/Python.framework/Versions/3.6/lib/python3.6/asyncio/base_events.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="312">
+          <caret line="403" column="8" selection-start-line="403" selection-start-column="8" selection-end-line="403" selection-end-column="8" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/Library/Caches/PyCharmCE2018.2/python_stubs/690644531/builtins.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="312">
+          <caret line="3595" column="8" selection-start-line="3595" selection-start-column="8" selection-end-line="3595" selection-end-column="8" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/libraries/tcpComm.py" />
+    <entry file="file://$PROJECT_DIR$/config.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="270">
+          <caret line="18" selection-start-line="18" selection-end-line="18" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file:///Library/Frameworks/Python.framework/Versions/3.6/lib/python3.6/logging/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="312">
+          <caret line="1876" column="4" selection-start-line="1876" selection-start-column="4" selection-end-line="1876" selection-end-column="4" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/libraries/faceButton.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="195">
+          <caret line="13" column="39" selection-start-line="13" selection-start-column="39" selection-end-line="13" selection-end-column="39" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/libraries/faceButtons.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="135">
+          <caret line="9" column="8" selection-start-line="9" selection-start-column="8" selection-end-line="9" selection-end-column="8" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/libraries/Settings.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="180">
+          <caret line="12" column="37" lean-forward="true" selection-start-line="12" selection-start-column="37" selection-end-line="12" selection-end-column="37" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/libraries/RotaryEncoder.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="488">
+          <caret line="48" selection-start-line="48" selection-end-line="48" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file:///Library/Frameworks/Python.framework/Versions/3.6/lib/python3.6/asyncio/events.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="247">
+          <caret line="306" column="8" selection-start-line="306" selection-start-column="8" selection-end-line="306" selection-end-column="8" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file:///Library/Frameworks/Python.framework/Versions/3.6/lib/python3.6/socketserver.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="309">
+          <caret line="244" column="16" selection-start-line="244" selection-start-column="8" selection-end-line="244" selection-end-column="16" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$APPLICATION_HOME_DIR$/helpers/typeshed/stdlib/2and3/socket.pyi">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="305">
+          <caret line="552" column="8" selection-start-line="552" selection-start-column="8" selection-end-line="552" selection-end-column="8" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/libraries/networkUDP.py" />
+    <entry file="file://$PROJECT_DIR$/libraries/mpcHelper.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="645">
+          <caret line="59" selection-start-line="59" selection-end-line="59" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/libraries/constants.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="210">
+          <caret line="14" lean-forward="true" selection-start-line="14" selection-end-line="14" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/libraries/i2clcda.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1575">
+          <caret line="108" selection-start-line="108" selection-end-line="108" />
+          <folding>
+            <element signature="e#231#243#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file:///Library/Frameworks/Python.framework/Versions/3.6/lib/python3.6/asyncio/streams.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="357">
+          <caret line="311" column="8" selection-start-line="311" selection-start-column="8" selection-end-line="311" selection-end-column="8" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file:///Library/Frameworks/Python.framework/Versions/3.6/lib/python3.6/threading.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="312">
+          <caret line="1023" column="8" selection-start-line="1023" selection-start-column="8" selection-end-line="1023" selection-end-column="8" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/io_mr.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="2100">
+          <caret line="140" column="21" selection-start-line="140" selection-start-column="16" selection-end-line="140" selection-end-column="21" />
+          <folding>
+            <marker date="1562241190044" expanded="true" signature="2514:2737" ph="..." />
+            <marker date="1562241190044" expanded="true" signature="4494:5825" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/libraries/backlight.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="300">
+          <caret line="22" selection-start-line="22" selection-end-line="22" />
+          <folding>
+            <element signature="e#25#51#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/os_mr.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="885">
+          <caret line="368" selection-start-line="368" selection-end-line="368" />
+          <folding>
+            <element signature="e#26#49#0" expanded="true" />
+            <marker date="1562521684068" expanded="true" signature="1153:1162" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/menu.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="596">
+          <caret line="677" column="25" selection-start-line="677" selection-start-column="25" selection-end-line="677" selection-end-column="25" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/libraries/oldNetworkUDP.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="652">
+          <caret line="618" column="8" selection-start-line="618" selection-start-column="8" selection-end-line="618" selection-end-column="8" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/libraries/connect.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="513">
+          <caret line="140" column="22" selection-start-line="140" selection-start-column="8" selection-end-line="140" selection-end-column="22" />
+          <folding>
+            <element signature="e#0#14#0" expanded="true" />
+            <marker date="1562749580592" expanded="true" signature="8086:8529" ph="..." />
+            <marker date="1562749580592" expanded="true" signature="18348:18964" ph="..." />
+            <marker date="1562749580592" expanded="true" signature="18677:18737" ph="..." />
+            <marker date="1562749580592" expanded="true" signature="18880:18885" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/libraries/system.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="365">
+          <caret line="104" column="39" selection-start-line="104" selection-start-column="39" selection-end-line="104" selection-end-column="39" />
+          <folding>
+            <element signature="e#25#42#0" expanded="true" />
+            <marker date="1567082499723" expanded="true" signature="2139:2217" ph="..." />
+            <marker date="1567082499723" expanded="true" signature="2248:2253" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+  </component>
+  <component name="masterDetails">
+    <states>
+      <state key="ScopeChooserConfigurable.UI">
+        <settings>
+          <splitter-proportions>
+            <option name="proportions">
+              <list>
+                <option value="0.2" />
+              </list>
+            </option>
+          </splitter-proportions>
+        </settings>
+      </state>
+    </states>
+  </component>
+</project>

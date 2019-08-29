@@ -19,14 +19,15 @@ class Backlight():
     def test(self):
         if (time.time()-self.last) < blDelay and not self.blOn:
             enableBacklight()
-            self.blOn=True
+            self.blOn = True
             return
             # self.os.menu.askRefreshFromOutside()
 
         if (time.time()-self.last)>blDelay and self.blOn:
+
             disableBacklight()
             self.blOn = False
-            self.os.askRefresh(0)
+            self.os.io.askResendTexts()
             return
 
 

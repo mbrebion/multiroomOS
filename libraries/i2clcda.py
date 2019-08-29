@@ -32,13 +32,17 @@ physicalLines=[LCD_LINE_1,LCD_LINE_2,LCD_LINE_3,LCD_LINE_4]
 LCD_BACKLIGHT_ON  = 0x08  # On
 LCD_BACKLIGHT_OFF = 0x00  # Off
 LCD_BACKLIGHT = LCD_BACKLIGHT_ON
+BACKLIGHT_change = False
+
 
 def enableBacklight():
-    global LCD_BACKLIGHT
+    global LCD_BACKLIGHT,BACKLIGHT_change
+    BACKLIGHT_change = True
     LCD_BACKLIGHT = LCD_BACKLIGHT_ON
 
 def disableBacklight():
-    global LCD_BACKLIGHT
+    global LCD_BACKLIGHT,BACKLIGHT_change
+    BACKLIGHT_change = True
     LCD_BACKLIGHT = LCD_BACKLIGHT_OFF
 
 ENABLE = 0b00000100 # Enable bit
@@ -95,13 +99,15 @@ def lcd_string(message,myLine):
     :param line: the line concerned
     :return: nothing
     """
-    global lines
+    global lines, BACKLIGHT_change
     line=myLine-1
     with writeLock:
-        if lines[line] != message:
+        if lines[line] != message or BACKLIGHT_change :
             lines[line]=message
+            BACKLIGHT_change = False
         else:
             return
+
         mess = message.ljust(LCD_WIDTH, " ")
         lcd_byte(physicalLines[line], LCD_CMD)
 
